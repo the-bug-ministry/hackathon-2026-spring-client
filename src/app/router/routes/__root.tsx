@@ -14,6 +14,8 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 
 function RootComponent() {
     return (
-        <Outlet />
+        <div className="h-screen w-full overflow-hidden">
+            <Outlet />
+        </div>
     )
 }

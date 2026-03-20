@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
+import { NuqsAdapter } from 'nuqs/adapters/react'
 
 import App from "./app/App.tsx"
 
@@ -9,7 +10,9 @@ if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement)
   root.render(
     <StrictMode>
-      <App />
+      <NuqsAdapter>
+        <App />
+      </NuqsAdapter>
     </StrictMode>
   )
 }

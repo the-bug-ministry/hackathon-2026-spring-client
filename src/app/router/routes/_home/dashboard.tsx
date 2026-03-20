@@ -4,9 +4,15 @@ import { AppHeader } from '@/widgets/header'
 import { AppSidebar } from '@/widgets/sidebar'
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { Toaster } from 'sonner'
+import { z } from 'zod'
+
+const dashboardSearchSchema = z.object({
+  satellites: z.string().optional(),
+})
 
 export const Route = createFileRoute('/_home/dashboard')({
   component: RouteComponent,
+  validateSearch: (search) => dashboardSearchSchema.parse(search),
   beforeLoad: () => {
     console.log('До загрузки ')
   }

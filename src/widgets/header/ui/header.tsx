@@ -91,7 +91,7 @@ export const AppHeader = () => {
                             </SwapOn>
                         ) : (
                             <SwapOff>
-                                <MoonIcon className="size-5 text-white" />
+                                <MoonIcon className="size-5 text-black" />
                             </SwapOff>
                         )}
                     </Swap>

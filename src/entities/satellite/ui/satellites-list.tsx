@@ -7,7 +7,7 @@ import {
     SidebarMenuItem
 } from '@/shared/components/ui/sidebar';
 
-import { satellitesMock } from '../model/satellites-mock';
+import { satellitesMock } from '../model/mock/satellites-mock';
 
 import { getRouteApi } from '@tanstack/react-router';
 import { getIconByType, getTypeColor } from '../lib';
