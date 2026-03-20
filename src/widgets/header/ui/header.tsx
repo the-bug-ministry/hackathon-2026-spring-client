@@ -41,7 +41,7 @@ export const AppHeader = () => {
             <div className='flex items-center justify-between px-2 h-full gap-4'>
                 <div className='flex items-center gap-4'>
                     <SidebarTrigger />
-                    <span>Виток</span>
+                    <span>Орбитекс</span>
                 </div>
 
                 <div className='flex items-center gap-8'>

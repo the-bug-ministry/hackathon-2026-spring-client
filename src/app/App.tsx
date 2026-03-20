@@ -4,12 +4,15 @@ import { queryClient, router } from './router/router';
 import '@/app/styles/index.css';
 import { useAuth } from '@/entities/auth/lib/use-auth';
 
-export function App() {
-
+function AppInner() {
   const auth = useAuth();
+  return <RouterProvider router={router} context={{ auth }} />
+}
+
+export function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} context={{ auth }} />
+      <AppInner />
     </QueryClientProvider>
   )
 }
