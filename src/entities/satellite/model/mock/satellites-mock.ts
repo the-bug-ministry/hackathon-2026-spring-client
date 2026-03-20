@@ -1,4 +1,6 @@
-export const satellitesMock = [
+import type { Satellite } from '../types/satellite.interface';
+
+export const satellitesMock: Satellite[] = [
     {
         id: '1f3a9b2c-6a4e-4d7e-9c2f-1b2e3d4f5a01',
         name: 'ISS (ZARYA)',

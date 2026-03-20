@@ -1,10 +1,20 @@
 import { getRouteApi } from '@tanstack/react-router';
-import { TrackedSatellites } from './ui/tracked-satellites';
+import { TrackedSatellites } from '../../features/tracked-satellites';
+import { EarthMap } from '@/features/earth-map';
+import { satellitesMapMock } from '@/entities/satellite/lib/marge';
 
 export function DashboardPage() {
     const route = getRouteApi('/_home/dashboard');
     const { satellites: selectedSatellitesStr } = route.useSearch();
     const navigate = route.useNavigate();
+
+    const selectedIds = selectedSatellitesStr
+        ? selectedSatellitesStr.split(',').filter(Boolean)
+        : [];
+
+    const selectedSatellites = satellitesMapMock.filter((sat) =>
+        selectedIds.includes(sat.id),
+    );
 
     const handleCloseSatellite = (satelliteId: string) => {
         navigate({
@@ -12,7 +22,9 @@ export function DashboardPage() {
                 const current = prev.satellites
                     ? prev.satellites.split(',').filter(Boolean)
                     : [];
+
                 const next = current.filter((id) => id !== satelliteId);
+
                 return {
                     ...prev,
                     satellites: next.join(','),
@@ -23,12 +35,8 @@ export function DashboardPage() {
 
     return (
         <div className="absolute inset-0">
-            {/* Карта - заполняет весь экран с небольшим margin */}
-            <div className="absolute inset-0 m-2 rounded-2xl bg-linear-to-br from-slate-900 to-slate-800 overflow-hidden">
-                {/* Здесь будет карта Земли/2D карта */}
-                <div className="h-full w-full flex items-center justify-center text-muted-foreground">
-                    Карта (2D Глобус)
-                </div>
+            <div className="absolute inset-0 m-2 overflow-hidden rounded-2xl">
+                <EarthMap satellites={selectedSatellites} />
             </div>
 
             <TrackedSatellites
