@@ -3,10 +3,10 @@ import z from 'zod';
 export const formSchema = z.object({
     username: z
         .string()
-        .min(5, "Bug title must be at least 5 characters.")
-        .max(32, "Bug title must be at most 32 characters."),
+        .min(5, "Имя пользователя должно содержать минимум 5 символов.")
+        .max(32, "Имя пользователя должно содержать не более 32 символов."),
     password: z
         .string()
-        .min(10, "Description must be at least 20 characters.")
-        .max(100, "Description must be at most 100 characters."),
+        .min(10, "Пароль должен содержать минимум 10 символов.")
+        .max(100, "Пароль должен содержать не более 100 символов."),
 });

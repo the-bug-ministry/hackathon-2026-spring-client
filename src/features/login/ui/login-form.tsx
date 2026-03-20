@@ -42,7 +42,6 @@ export function LoginForm({
         }
     })
 
-
     const form = useForm({
         defaultValues: {
             username: "",
@@ -62,7 +61,7 @@ export function LoginForm({
                 <CardHeader>
                     <CardTitle>Войти в аккаунт</CardTitle>
                     <CardDescription>
-                        Введите свой адрес электронной почты ниже, чтобы войти в свою учетную запись
+                        Введите свой адрес электронной почты ниже, чтобы войти в учетную запись
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -80,7 +79,7 @@ export function LoginForm({
 
                                     return (
                                         <Field data-invalid={isInvalid}>
-                                            <FieldLabel htmlFor="email">Email</FieldLabel>
+                                            <FieldLabel htmlFor="email">Логин</FieldLabel>
                                             <Input
                                                 id={field.name}
                                                 name={field.name}
@@ -88,7 +87,7 @@ export function LoginForm({
                                                 onBlur={field.handleBlur}
                                                 onChange={(e) => field.handleChange(e.target.value)}
                                                 aria-invalid={isInvalid}
-                                                placeholder="Login button not working on mobile"
+                                                placeholder="example@yandex.ru"
                                                 autoComplete="off"
                                             />
                                             {isInvalid && (
@@ -115,7 +114,6 @@ export function LoginForm({
                                                 onBlur={field.handleBlur}
                                                 onChange={(e) => field.handleChange(e.target.value)}
                                                 aria-invalid={isInvalid}
-                                                placeholder="Login button not working on mobile"
                                                 autoComplete="off"
                                             />
                                             {isInvalid && (

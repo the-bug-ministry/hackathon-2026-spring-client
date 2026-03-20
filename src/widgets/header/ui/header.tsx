@@ -11,6 +11,7 @@ import {
     SatelliteIcon,
     UserIcon
 } from 'lucide-react';
+import { PROJECT_NAME } from '@/shared/config/site';
 
 const THEME_KEY = 'theme';
 
@@ -41,7 +42,7 @@ export const AppHeader = () => {
             <div className='flex items-center justify-between px-2 h-full gap-4'>
                 <div className='flex items-center gap-4'>
                     <SidebarTrigger />
-                    <span>Орбитекс</span>
+                    <span>{PROJECT_NAME}</span>
                 </div>
 
                 <div className='flex items-center gap-8'>
