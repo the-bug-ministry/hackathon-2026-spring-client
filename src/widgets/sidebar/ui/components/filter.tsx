@@ -25,14 +25,14 @@ export const ApparatFilter = ({
   onMissionChange,
 }: ApparatFilterProps) => {
   return (
-    <div className="space-y-3 rounded-2xl border border-border/70 bg-card/60 p-3 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/60 p-3 shadow-sm">
       <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
         <FilterIcon className="size-4 shrink-0" />
         <span>Фильтры</span>
       </div>
 
       <Select value={orbit} onValueChange={onOrbitChange}>
-        <SelectTrigger className="h-10 w-full rounded-xl">
+        <SelectTrigger className="h-10 w-full min-w-0 rounded-xl">
           <SelectValue placeholder="Все орбиты" />
         </SelectTrigger>
         <SelectContent>
@@ -44,34 +44,32 @@ export const ApparatFilter = ({
         </SelectContent>
       </Select>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2">
-        <Select value={country} onValueChange={onCountryChange}>
-          <SelectTrigger className="h-10 w-full min-w-0 rounded-xl">
-            <SelectValue placeholder="Все страны" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Все страны</SelectItem>
-            <SelectItem value="usa">USA</SelectItem>
-            <SelectItem value="eu">EU</SelectItem>
-            <SelectItem value="china">China</SelectItem>
-            <SelectItem value="japan">Japan</SelectItem>
-          </SelectContent>
-        </Select>
+      <Select value={country} onValueChange={onCountryChange}>
+        <SelectTrigger className="h-10 w-full min-w-0 rounded-xl">
+          <SelectValue placeholder="Все страны" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Все страны</SelectItem>
+          <SelectItem value="usa">USA</SelectItem>
+          <SelectItem value="eu">EU</SelectItem>
+          <SelectItem value="china">China</SelectItem>
+          <SelectItem value="japan">Japan</SelectItem>
+        </SelectContent>
+      </Select>
 
-        <Select value={mission} onValueChange={onMissionChange}>
-          <SelectTrigger className="h-10 w-full min-w-0 rounded-xl">
-            <SelectValue placeholder="Все цели" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Все цели</SelectItem>
-            <SelectItem value="observation">Observation</SelectItem>
-            <SelectItem value="weather">Weather</SelectItem>
-            <SelectItem value="communication">Communication</SelectItem>
-            <SelectItem value="navigation">Navigation</SelectItem>
-            <SelectItem value="science">Science</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <Select value={mission} onValueChange={onMissionChange}>
+        <SelectTrigger className="h-10 w-full min-w-0 rounded-xl">
+          <SelectValue placeholder="Все цели" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Все цели</SelectItem>
+          <SelectItem value="observation">Observation</SelectItem>
+          <SelectItem value="weather">Weather</SelectItem>
+          <SelectItem value="communication">Communication</SelectItem>
+          <SelectItem value="navigation">Navigation</SelectItem>
+          <SelectItem value="science">Science</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   )
 }

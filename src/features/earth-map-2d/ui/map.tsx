@@ -243,6 +243,9 @@ export function EarthMap2D({
     y: number
   } | null>(null)
   const [labelOpacity, setLabelOpacity] = useState(() => getLabelOpacity(1))
+  const [hoveredSatelliteId, setHoveredSatelliteId] = useState<string | null>(
+    null
+  )
   const now = simulationTime ?? new Date()
   const renderedSatellites = useRenderedSatellites(satellites, now)
   const trackedIds = useMemo(
@@ -489,11 +492,15 @@ export function EarthMap2D({
 
           {renderedSatellites.map((sat) => {
             const isTracked = trackedIds.has(sat.id)
-            const segments = isTracked ? splitTrackOnDateline(sat.path) : []
+            const isHovered = hoveredSatelliteId === sat.id
+            const showTrajectory = isTracked || isHovered
+            const segments = showTrajectory
+              ? splitTrackOnDateline(sat.path)
+              : []
 
             return (
               <g key={sat.id}>
-                {isTracked &&
+                {showTrajectory &&
                   segments.map((segment, index) => {
                     const lineD = path({
                       type: "LineString",
@@ -508,6 +515,7 @@ export function EarthMap2D({
                         stroke={palette.track}
                         strokeWidth={2}
                         strokeDasharray="6 6"
+                        pointerEvents="none"
                       />
                     )
                   })}
@@ -523,24 +531,30 @@ export function EarthMap2D({
                     return (
                       <g
                         className="cursor-pointer"
+                        onMouseEnter={() => setHoveredSatelliteId(sat.id)}
+                        onMouseLeave={() =>
+                          setHoveredSatelliteId((prev) =>
+                            prev === sat.id ? null : prev
+                          )
+                        }
                         onClick={() => onSatelliteClick?.(sat.id)}
                       >
                         <circle
                           cx={x}
                           cy={y}
-                          r={isTracked ? 16 : 8}
+                          r={isTracked || isHovered ? 16 : 8}
                           fill={palette.satelliteHalo}
-                          opacity={isTracked ? 1 : 0.35}
+                          opacity={isTracked || isHovered ? 1 : 0.35}
                         />
                         <circle
                           cx={x}
                           cy={y}
-                          r={isTracked ? 7 : 3.5}
+                          r={isTracked || isHovered ? 7 : 3.5}
                           fill={palette.satelliteCore}
                           stroke={palette.satelliteStroke}
-                          strokeWidth={isTracked ? 2 : 1}
+                          strokeWidth={isTracked || isHovered ? 2 : 1}
                         />
-                        {isTracked && (
+                        {showTrajectory && (
                           <text
                             x={x + 12}
                             y={y - 12}
@@ -548,6 +562,7 @@ export function EarthMap2D({
                             fontSize="11"
                             fontWeight="600"
                             style={{ opacity: labelOpacity }}
+                            pointerEvents="none"
                           >
                             {sat.name}
                           </text>

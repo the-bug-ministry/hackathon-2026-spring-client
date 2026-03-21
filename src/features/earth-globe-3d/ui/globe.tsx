@@ -421,18 +421,23 @@ function SatelliteCoverageRing({
 
 function RenderedSatelliteMarker({
   satellite,
-  showTrack,
+  isTracked,
+  isHovered,
+  onHoverChange,
   onSelect,
   labelOpacity,
 }: {
   satellite: RenderedSatellite3D
-  showTrack: boolean
+  isTracked: boolean
+  isHovered: boolean
+  onHoverChange: (id: string | null) => void
   onSelect?: (id: string) => void
   labelOpacity?: number
 }) {
   if (!satellite.current) return null
 
   const { current } = satellite
+  const showTrajectory = isTracked || isHovered
 
   return (
     <group
@@ -440,23 +445,33 @@ function RenderedSatelliteMarker({
         event.stopPropagation()
         onSelect?.(satellite.id)
       }}
+      onPointerOver={(event) => {
+        event.stopPropagation()
+        onHoverChange(satellite.id)
+      }}
+      onPointerOut={(event) => {
+        event.stopPropagation()
+        onHoverChange(null)
+      }}
     >
       <SatellitePoint
         lat={current.lat}
         lng={current.lng}
         name={satellite.name}
         altitudeKm={current.altitudeKm}
-        showLabel={showTrack}
+        showLabel={showTrajectory}
         labelOpacity={labelOpacity}
       />
-      {showTrack && (
+      {showTrajectory && (
         <>
           <SatelliteTrack path={satellite.path} />
-          <SatelliteCoverageRing
-            lat={current.lat}
-            lng={current.lng}
-            altitudeKm={current.altitudeKm}
-          />
+          {isTracked && (
+            <SatelliteCoverageRing
+              lat={current.lat}
+              lng={current.lng}
+              altitudeKm={current.altitudeKm}
+            />
+          )}
         </>
       )}
     </group>
@@ -466,12 +481,16 @@ function RenderedSatelliteMarker({
 function SatelliteVisualizationLayer({
   satellites = [],
   trackedSatelliteIds = [],
+  hoveredSatelliteId,
+  onSatelliteHover,
   simulationTime,
   onSatelliteClick,
   labelOpacity = 1,
 }: {
   satellites?: SatelliteMap[]
   trackedSatelliteIds?: string[]
+  hoveredSatelliteId: string | null
+  onSatelliteHover: (id: string | null) => void
   simulationTime?: Date
   onSatelliteClick?: (id: string) => void
   labelOpacity?: number
@@ -495,7 +514,9 @@ function SatelliteVisualizationLayer({
         <RenderedSatelliteMarker
           key={satellite.id}
           satellite={satellite}
-          showTrack={trackedSet.has(satellite.id)}
+          isTracked={trackedSet.has(satellite.id)}
+          isHovered={hoveredSatelliteId === satellite.id}
+          onHoverChange={onSatelliteHover}
           onSelect={onSatelliteClick}
           labelOpacity={labelOpacity}
         />
@@ -513,6 +534,9 @@ export function EarthGlobe3D({
 }: EarthGlobe3DProps) {
   const [theme, setTheme] = useState<GlobeTheme>("dark")
   const [globeLabelOpacity, setGlobeLabelOpacity] = useState(1)
+  const [hoveredSatelliteId, setHoveredSatelliteId] = useState<string | null>(
+    null
+  )
 
   useEffect(() => {
     const resolveTheme = () =>
@@ -626,6 +650,8 @@ export function EarthGlobe3D({
         <SatelliteVisualizationLayer
           satellites={satellites}
           trackedSatelliteIds={trackedSatelliteIds}
+          hoveredSatelliteId={hoveredSatelliteId}
+          onSatelliteHover={setHoveredSatelliteId}
           simulationTime={simulationTime}
           onSatelliteClick={onSatelliteClick}
           labelOpacity={globeLabelOpacity}

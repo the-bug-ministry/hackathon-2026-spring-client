@@ -40,11 +40,9 @@ export function DashboardPage() {
   }
 
   const handleSelectSatellite = (satelliteId: string) => {
-    if (selectedIds.includes(satelliteId)) {
-      return
-    }
-
-    setSatelliteSearch([...selectedIds, satelliteId])
+    const isSameAsOnly =
+      selectedIds.length === 1 && selectedIds[0] === satelliteId
+    setSatelliteSearch(isSameAsOnly ? [] : [satelliteId])
   }
 
   const handleCloseSatellite = (satelliteId: string) => {
