@@ -40,9 +40,6 @@ export const AppHeader = () => {
       ? "border-slate-600 bg-slate-900/70 text-white shadow-lg shadow-slate-950/50 hover:bg-slate-900/90"
       : "border-slate-200 bg-white/80 text-slate-900 shadow-sm shadow-slate-950/20 hover:bg-slate-100"
   )
-  const sunIconClass = cn("size-5", "text-white")
-  const moonIconClass = cn("size-5", "text-black")
-
   return (
     <header className="absolute z-20 h-12 w-full bg-sidebar">
       <div className="flex h-full items-center justify-between gap-4 px-2">
@@ -84,20 +81,16 @@ export const AppHeader = () => {
           <Swap
             role="button"
             onClick={toggleTheme}
-            aria-label={`Переключить на ${
-              isDarkTheme ? "светлую" : "тёмную"
-            } тему`}
+            aria-label={`Переключить на ${isDarkTheme ? "светлую" : "тёмную"} тему`}
             className={switchClasses}
           >
-            {isDarkTheme ? (
-              <SwapOn>
-                <SunIcon className={sunIconClass} />
-              </SwapOn>
-            ) : (
-              <SwapOff>
-                <MoonIcon className={moonIconClass} />
-              </SwapOff>
-            )}
+            <SwapOff>
+              <MoonIcon className="size-5 text-foreground" />
+            </SwapOff>
+
+            <SwapOn>
+              <SunIcon className="size-5 text-foreground" />
+            </SwapOn>
           </Swap>
         </div>
       </div>
