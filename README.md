@@ -105,25 +105,104 @@
 
 ---
 
+## Установка и запуск
+
+1. Установите зависимости:
+   ```bash
+   npm ci
+   ```
+2. Для локальной разработки используйте:
+   ```bash
+   npm run dev
+   ```
+   сборка стартует Vite dev-сервер на `localhost:5173`.
+3. Для продакшен-сборки:
+   ```bash
+   npm run build
+   npm run preview
+   ```
+   Это позволит проверить результат `npm run build` через Vite preview на `localhost:4173`.
+
+---
+
 ## Технологический стек
 
-Рекомендуемый стек для фронтенда:
+Реальный стек и библиотеки, уже внедрённые в проект:
 
-- **React** / **Next.js**
-- **TypeScript**
-- **Mapbox GL JS**, **Leaflet** или **CesiumJS** для карты и геовизуализации
-- **Tailwind CSS** / **SCSS** для стилизации
-- **Zustand**, **Redux Toolkit** или Context API для управления состоянием
-- **Axios** / **Fetch API** для запросов к backend API
-- **satellite.js** для расчётов по TLE на клиенте или предварительной обработки
+- **React** + **Vite** + **TypeScript** для клиентского SPA.
+- **Tailwind CSS** / PostCSS + утилиты в `shared/ui` для стилистики.
+- **@tanstack/react-router** + **Zustand** для маршрутов и управления состоянием.
+- **@react-three/fiber** + **drei** для WebGL-глобуса и 3D-рендеринга.
+- **D3** (`geoPath`, `geoEqualEarth`, `geoGraticule`) для векторных карт и геометрии.
+- **satellite.js** и собственный модуль `entities/satellite/lib/propagation` для орбитальных расчётов.
+- `fetch` / `axios` стилизованы (см. features/simulation) для API-запросов и websocket-интеграций.
+- `npm run dev|build|preview`, Dockerfile и docker-compose для локального/продакшен-развёртывания.
 
 ---
 
 ## Архитектура фронтенда
 
-Примерная структура проекта:
+```
+src/
+  app/                      – Vite entrypoint, глобальные стили, env-config (`enviroment.ts`).
+  features/
+    earth-map-2d/           – SVG/D3-карта и её панель управления.
+    earth-globe-3d/         – WebGL-глобус (`@react-three/fiber` + `drei`).
+    tracked-satellites/      – список и карточки спутников, работа отслеживаемыми спутниками.
+    simulation/              – контроллер времени и UI-панель.
+  entities/
+    satellite/               – доменные модели, mock-данные (+TLE), утилиты (`propagation.ts`), UI-карточки.
+  widgets/
+    header/, sidebar/        – повторно используемые оболочки интерфейса.
+  shared/
+    components/              – рисуемые кнопки, бейджи, лейауты.
+    lib/                     – helpers, типы и утилиты.
+    styles/                  – глобальные CSS/Tailwind.
+```
+
+Дополнительно:
+
+- Каждый фичевый модуль делится на `ui/` (компоненты) и `model.ts`/`store.ts` (Zustand).
+- Геоданные обрабатываются через `satellite.js` и переиспользуются везде (карты, 3D и карточки).
+- `TrackedSatellites` читают `simulationTime` и обновляют карточки с реальными координатами и скоростью.
+
+---
+
+## Переменные окружения
+
+Фронтенд читает переменные `VITE_PUBLIC_*` из `.env.*` файлов. Конкретную сборку можно определить через:
+
+- `.env.development` (`VITE_PUBLIC_ENV=dev`)
+- `.env.prod` (`VITE_PUBLIC_ENV=prod`)
+
+Файл `src/app/env/enviroment.ts` экспортирует:
+
+- `APP_ENVIRONMENT` (`"dev"` или `"prod"`) — источник правды для UI/логики в рантайме.
+- `IS_DEV_ENV` / `IS_PROD_ENV` — булевые флаги.
+
+Это позволяет компонентам быстро выяснять, под какой конфигурацией они запущены.
+
+Дополнительно:
+
+- `VITE_PUBLIC_SATELLITE_DATA_SOURCE` — если задать `mock`, на карте используются только локальные моки (`satellitesMapMock`). Иначе данные берутся с API `GET /satellite/demo` (query: `country`, `type`, `mission`) с учётом фильтров в сайдбаре.
+
+---
+
+## Docker и docker-compose
+
+В проект добавлено:
+
+- `Dockerfile` со сборкой `npm run build` и финальным контейнером на nginx.
+- `docker-compose.yml` для двух сред:
+  - `app-dev` — монтирует локальный код, прокидывает `.env.development`, стартует dev-сервер.
+  - `app-prod` — использует продакшен-образ и `.env.prod`, служит готовую `dist` через nginx.
+
+Запуск:
 
 ```bash
-src/
-  app/
+docker compose up --build app-dev
+# или
+docker compose up --build app-prod
 ```
+
+---

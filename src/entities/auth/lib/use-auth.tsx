@@ -18,7 +18,11 @@ type AuthUtils = {
   ensureData: () => Promise<Account | null | undefined>
 }
 
-type AuthData = AuthState & AuthUtils
+type AuthData = AuthState &
+  AuthUtils & {
+    /** Ошибка запроса auth/me (не показывать как сбой при ожидаемой 401 вне профиля) */
+    meError: Error | null
+  }
 
 function useAuth(): AuthData {
   //Query client
@@ -47,6 +51,8 @@ function useAuth(): AuthData {
     queryClient.setQueryData(authKeys.me(), null)
   }, [authQuery.error, queryClient])
 
+  const meError = authQuery.error ?? null
+
   const utils: AuthUtils = {
     //just redirect to /login
     // signIn: () => {
@@ -65,13 +71,18 @@ function useAuth(): AuthData {
   //return value all states
   switch (true) {
     case authQuery.isPending:
-      return { ...utils, account: null, status: "PENDING" }
+      return { ...utils, account: null, status: "PENDING", meError }
 
     case !authQuery.data:
-      return { ...utils, account: null, status: "UNAUTHENTICATED" }
+      return { ...utils, account: null, status: "UNAUTHENTICATED", meError }
 
     default:
-      return { ...utils, account: authQuery.data, status: "AUTHENTICATED" }
+      return {
+        ...utils,
+        account: authQuery.data,
+        status: "AUTHENTICATED",
+        meError: null,
+      }
   }
 }
 
