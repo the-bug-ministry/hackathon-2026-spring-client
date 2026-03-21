@@ -5,7 +5,7 @@ import type { MeParams, MeResponse } from "../dto/me"
 export const authApi = {
   login: ({ password, username, signal }: AuthParams) => {
     return apiClient.request<AuthResponse>({
-      path: "login",
+      path: "auth/login",
       body: {
         password,
         username,
@@ -17,14 +17,14 @@ export const authApi = {
 
   me: ({ signal }: MeParams) => {
     return apiClient.request<MeResponse>({
-      path: "me",
+      path: "auth/me",
       signal,
     })
   },
 
   logout: () => {
     return apiClient.request({
-      path: "logout",
+      path: "auth/logout",
     })
   },
 }

@@ -4,7 +4,7 @@ import { toast } from "sonner"
 
 import { Button } from "@/shared/components/ui/button"
 import { cn } from "@/shared/lib/utils"
-import { useTleUpload } from "@/entities/satellite/api/query/use-tle-upload"
+import { useTleUpload } from "@/entities/satellite/lib"
 
 export function TleFileUpload() {
   const inputRef = useRef<HTMLInputElement>(null)

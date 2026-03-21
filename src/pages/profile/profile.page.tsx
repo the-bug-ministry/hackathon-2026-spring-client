@@ -1,4 +1,8 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/shared/components/ui/avatar"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/shared/components/ui/avatar"
 import { Button } from "@/shared/components/ui/button"
 import {
   Card,
@@ -48,8 +52,8 @@ export function ProfilePage() {
         </div>
       )}
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-auto">
           <div className="flex min-h-0 w-full flex-col gap-6">
             <Card className="rounded-2xl">
               <CardContent className="flex items-center gap-6 p-6">
@@ -91,7 +95,9 @@ export function ProfilePage() {
                       <CardTitle className="flex items-center gap-2">
                         <UserIcon className="size-4" /> Личные данные
                       </CardTitle>
-                      <CardDescription>Обнови информацию о себе</CardDescription>
+                      <CardDescription>
+                        Обнови информацию о себе
+                      </CardDescription>
                     </CardHeader>
 
                     <CardContent className="space-y-4">
@@ -137,7 +143,11 @@ export function ProfilePage() {
                         />
                       </div>
 
-                      <Button variant="outline" className="w-full" disabled={isDisabled}>
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        disabled={isDisabled}
+                      >
                         Изменить email
                       </Button>
                     </CardContent>
@@ -148,11 +158,17 @@ export function ProfilePage() {
                       <CardTitle className="flex items-center gap-2">
                         <ShieldIcon className="size-4" /> Безопасность
                       </CardTitle>
-                      <CardDescription>Настройки безопасности аккаунта</CardDescription>
+                      <CardDescription>
+                        Настройки безопасности аккаунта
+                      </CardDescription>
                     </CardHeader>
 
                     <CardContent className="space-y-4">
-                      <Button variant="outline" className="w-fit" disabled={isDisabled}>
+                      <Button
+                        variant="outline"
+                        className="w-fit"
+                        disabled={isDisabled}
+                      >
                         Сменить пароль
                       </Button>
 
@@ -163,7 +179,8 @@ export function ProfilePage() {
                         className="flex w-fit items-center gap-2"
                         disabled={isLoading}
                       >
-                        <LogOutIcon className="size-4 w-fit" /> Выйти из аккаунта
+                        <LogOutIcon className="size-4 w-fit" /> Выйти из
+                        аккаунта
                       </Button>
                     </CardContent>
                   </Card>

@@ -15,7 +15,10 @@ type StoredDump = {
 export interface TleDump extends StoredDump {}
 
 const createId = () => {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID()
   }
 
@@ -75,9 +78,15 @@ const normalizeStored = (dumps: unknown): TleDump[] => {
         id: candidate.id,
         name: candidate.name,
         content: candidate.content,
-        createdAt: typeof candidate.createdAt === "string" ? candidate.createdAt : new Date().toISOString(),
+        createdAt:
+          typeof candidate.createdAt === "string"
+            ? candidate.createdAt
+            : new Date().toISOString(),
         entries: typeof candidate.entries === "number" ? candidate.entries : 0,
-        size: typeof candidate.size === "number" ? candidate.size : candidate.content.length,
+        size:
+          typeof candidate.size === "number"
+            ? candidate.size
+            : candidate.content.length,
         isActive: Boolean(candidate.isActive),
       }
     })
@@ -137,7 +146,10 @@ export const useTleDumps = () => {
     persistDumps(dumps)
   }, [dumps, hydrated])
 
-  const activeDump = useMemo(() => dumps.find((dump) => dump.isActive) ?? null, [dumps])
+  const activeDump = useMemo(
+    () => dumps.find((dump) => dump.isActive) ?? null,
+    [dumps]
+  )
 
   const addDumps = useCallback(async (files: FileList) => {
     const items = await Promise.all(

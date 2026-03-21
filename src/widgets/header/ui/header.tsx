@@ -7,7 +7,7 @@ import { Separator } from "@/shared/components/ui/separator"
 import { useEffect, useState } from "react"
 
 import { cn } from "@/shared/lib/utils"
-import { ChevronRightIcon, Globe, SatelliteIcon } from "lucide-react"
+import { ChevronRightIcon, Globe, LogIn, SatelliteIcon } from "lucide-react"
 import { PROJECT_NAME } from "@/shared/config/site"
 import {
   Avatar,
@@ -24,7 +24,7 @@ const navBtnClass = cn(
 function HeaderUserProfile({ isActive }: { isActive: boolean }) {
   const { account, status } = useAuth()
 
-  if (status === "PENDING" || !account) {
+  if (status === "PENDING") {
     return (
       <div
         className="flex max-w-[220px] items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar-accent/25 px-2 py-1.5"
@@ -37,6 +37,27 @@ function HeaderUserProfile({ isActive }: { isActive: boolean }) {
         </div>
       </div>
     )
+  }
+
+  if (status === "UNAUTHENTICATED") {
+    return (
+      <Button asChild variant="ghost" className="h-8 min-w-0 px-2">
+        <Link
+          to="/login"
+          className={cn(
+            navBtnClass,
+            "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          )}
+        >
+          <LogIn className="size-3.5 shrink-0" aria-hidden />
+          Войти
+        </Link>
+      </Button>
+    )
+  }
+
+  if (!account) {
+    return null
   }
 
   const initials =

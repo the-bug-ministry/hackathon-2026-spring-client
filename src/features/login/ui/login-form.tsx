@@ -23,11 +23,14 @@ import { queryClient } from "@/app/router/router"
 import { authKeys } from "@/entities/auth/api/contracts/auth.keys"
 import { toast } from "sonner"
 import { formSchema } from "../model/schema"
+import { useNavigate } from "@tanstack/react-router"
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+  const navigate = useNavigate()
+
   const login = useMutation({
     ...authOptions.login(),
     onSuccess: (data) => {
@@ -35,6 +38,10 @@ export function LoginForm({
       Cookies.set(ACCESS_TOKEN, data.accessToken)
 
       toast.success("Вход выполнен")
+      void navigate({
+        to: "/dashboard",
+        search: { satellites: "" },
+      })
     },
     onError: () => {
       toast.error("Ошибка авторизации")

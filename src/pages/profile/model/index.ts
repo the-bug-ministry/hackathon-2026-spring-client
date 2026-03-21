@@ -9,7 +9,9 @@ export interface ProfileFields {
   image: string
 }
 
-export const mapAccountToProfileFields = (account?: Account): ProfileFields => ({
+export const mapAccountToProfileFields = (
+  account?: Account
+): ProfileFields => ({
   firstName: account?.firstName ?? "",
   lastName: account?.lastName ?? "",
   username: account?.username ?? "",
@@ -29,5 +31,8 @@ export const buildInitials = (fields: ProfileFields) => {
   if (!fields.firstName && !fields.lastName) {
     return fields.username.slice(0, 2).toUpperCase() || "--"
   }
-  return `${fields.firstName.charAt(0) || ""}${fields.lastName.charAt(0) || ""}`.toUpperCase() || "--"
+  return (
+    `${fields.firstName.charAt(0) || ""}${fields.lastName.charAt(0) || ""}`.toUpperCase() ||
+    "--"
+  )
 }
