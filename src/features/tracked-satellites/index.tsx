@@ -21,7 +21,7 @@ export const TrackedSatellites = ({
     }, [selectedIds]);
 
     return (
-        <div className="absolute bottom-4 right-4 w-[520px] max-h-[calc(100vh-82px)] flex flex-col border border-border/70 rounded-2xl bg-background/95 backdrop-blur overflow-hidden shadow-2xl">
+        <div className="absolute bottom-4 right-4 w-[380px] max-h-[calc(100vh-82px)] flex flex-col border border-border/70 rounded-2xl bg-background/95 backdrop-blur overflow-hidden shadow-2xl">
                 <div className="border-b border-border/70 px-4 py-3 text-sm font-medium text-muted-foreground shrink-0">
                     Выбрано спутников: {selectedSatellites.length}
                 </div>
