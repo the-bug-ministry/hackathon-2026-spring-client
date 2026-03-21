@@ -1,12 +1,13 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from "react"
 import * as satellite from "satellite.js"
 import { select } from "d3-selection"
 import { zoom, zoomIdentity, ZoomTransform } from "d3-zoom"
-import { geoPath, geoGraticule10, geoEqualEarth } from "d3-geo"
+import { geoPath, geoGraticule10, geoEqualEarth, geoCentroid } from "d3-geo"
 import { feature } from "topojson-client"
 import worldAtlas from "world-atlas/countries-110m.json"
 import type { SatelliteMap } from "@/entities/satellite/model"
 import type { Topology, GeometryCollection } from "topojson-specification"
+import { cn } from "@/shared/lib/utils"
 
 /** Порог «базового» масштаба для ограничения панорамы. */
 const BASE_ZOOM_EPS = 1e-4
@@ -52,6 +53,62 @@ const WORLD_FEATURES = toFeatureCollection(
     | GeoJSON.Feature
     | GeoJSON.FeatureCollection
 )
+
+type MapTheme = "dark" | "light"
+
+type MapPalette = {
+  oceanGlowStart: string
+  oceanGlowEnd: string
+  sphereFill: string
+  sphereStroke: string
+  graticule: string
+  countryFill: string
+  countryStroke: string
+  track: string
+  satelliteHalo: string
+  satelliteCore: string
+  satelliteStroke: string
+  satelliteLabel: string
+}
+
+const MAP_PALETTES: Record<MapTheme, MapPalette> = {
+  dark: {
+    oceanGlowStart: "#0f274f",
+    oceanGlowEnd: "#020817",
+    sphereFill: "#081226",
+    sphereStroke: "rgba(148,163,184,0.18)",
+    graticule: "rgba(148,163,184,0.12)",
+    countryFill: "#12213d",
+    countryStroke: "rgba(148,163,184,0.18)",
+    track: "rgba(96,165,250,0.85)",
+    satelliteHalo: "rgba(34,197,94,0.14)",
+    satelliteCore: "#10b981",
+    satelliteStroke: "#ffffff",
+    satelliteLabel: "#ffffff",
+  },
+  light: {
+    oceanGlowStart: "#e0f2fe",
+    oceanGlowEnd: "#fef3c7",
+    sphereFill: "#f8fafc",
+    sphereStroke: "rgba(15,23,42,0.2)",
+    graticule: "rgba(15,23,42,0.25)",
+    countryFill: "#e2e8f0",
+    countryStroke: "rgba(15,23,42,0.2)",
+    track: "rgba(14,116,144,0.85)",
+    satelliteHalo: "rgba(14,116,144,0.18)",
+    satelliteCore: "#0f172a",
+    satelliteStroke: "#0f172a",
+    satelliteLabel: "#0f172a",
+  },
+}
+
+type HoveredCountry = {
+  feature: GeoJSON.Feature
+  name: string
+  iso: string | null
+  region: string | null
+  center: [number, number] | null
+}
 
 function normalizeLng(lng: number) {
   let value = lng
@@ -142,6 +199,40 @@ function splitTrackOnDateline(points: Array<[number, number]>) {
   return segments
 }
 
+function resolveCountryName(feature: GeoJSON.Feature) {
+  const props = (feature.properties ?? {}) as Record<string, unknown>
+  return (
+    (props.ADMIN as string) ??
+    (props.NAME as string) ??
+    (props.name as string) ??
+    (props.NAME_LONG as string) ??
+    (props.formal_en as string) ??
+    "Страна"
+  )
+}
+
+function resolveCountryIso(feature: GeoJSON.Feature) {
+  const props = (feature.properties ?? {}) as Record<string, unknown>
+  return (
+    (props.ISO_A3 as string) ??
+    (props.iso_a3 as string) ??
+    (props.ISO3 as string) ??
+    (props.iso3 as string) ??
+    (props.iso as string) ??
+    null
+  )
+}
+
+function resolveCountryRegion(feature: GeoJSON.Feature) {
+  const props = (feature.properties ?? {}) as Record<string, unknown>
+  return (
+    (props.CONTINENT as string) ??
+    (props.REGION_UN as string) ??
+    (props.region as string) ??
+    null
+  )
+}
+
 function useRenderedSatellites(satellites: SatelliteMap[]) {
   const [now, setNow] = useState(() => new Date())
 
@@ -174,6 +265,14 @@ export function EarthMap2D({
   const mapTransformRef = useRef<ZoomTransform>(zoomIdentity)
 
   const [size, setSize] = useState({ width: 1200, height: 700 })
+  const [mapTheme, setMapTheme] = useState<MapTheme>("dark")
+  const [hoveredCountry, setHoveredCountry] = useState<HoveredCountry | null>(
+    null
+  )
+  const [tooltipPosition, setTooltipPosition] = useState<{
+    x: number
+    y: number
+  } | null>(null)
   const renderedSatellites = useRenderedSatellites(satellites)
 
   useEffect(() => {
@@ -194,6 +293,62 @@ export function EarthMap2D({
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    if (typeof MutationObserver === "undefined") return
+
+    const resolveTheme = () =>
+      document.documentElement.classList.contains("dark") ? "dark" : "light"
+
+    const updateTheme = () => setMapTheme(resolveTheme())
+    updateTheme()
+
+    const observer = new MutationObserver(() => updateTheme())
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    })
+
+    return () => observer.disconnect()
+  }, [])
+
+  const alignTooltip = (event: MouseEvent<SVGPathElement>) => {
+    const svgRect = svgRef.current?.getBoundingClientRect()
+    if (!svgRect) {
+      setTooltipPosition(null)
+      return
+    }
+
+    setTooltipPosition({
+      x: event.clientX - svgRect.left,
+      y: event.clientY - svgRect.top,
+    })
+  }
+
+  const handleCountryHover = (
+    feature: GeoJSON.Feature,
+    event: MouseEvent<SVGPathElement>
+  ) => {
+    alignTooltip(event)
+    setHoveredCountry({
+      feature,
+      name: resolveCountryName(feature),
+      iso: resolveCountryIso(feature),
+      region: resolveCountryRegion(feature),
+      center: geoCentroid(feature),
+    })
+  }
+
+  const handleCountryMove = (event: MouseEvent<SVGPathElement>) => {
+    if (!hoveredCountry) return
+    alignTooltip(event)
+  }
+
+  const handleCountryLeave = () => {
+    setHoveredCountry(null)
+    setTooltipPosition(null)
+  }
+
   const projection = useMemo(() => {
     return geoEqualEarth().fitExtent(
       [
@@ -206,6 +361,36 @@ export function EarthMap2D({
 
   const path = useMemo(() => geoPath(projection), [projection])
   const graticule = useMemo(() => geoGraticule10(), [])
+  const palette = MAP_PALETTES[mapTheme]
+  const wrapperClassName = cn(
+    className ?? "h-full w-full rounded-2xl",
+    mapTheme === "dark" ? "bg-slate-950" : "bg-slate-50",
+    "relative"
+  )
+  const highlightFill =
+    mapTheme === "dark" ? "rgba(59,130,246,0.25)" : "rgba(14,116,144,0.25)"
+  const highlightStroke =
+    mapTheme === "dark" ? "rgba(59,130,246,0.85)" : "rgba(14,116,144,0.85)"
+  const tooltipWidth = 220
+  const tooltipStyle =
+    tooltipPosition && hoveredCountry
+      ? {
+          left: `${Math.max(
+            8,
+            Math.min(
+              tooltipPosition.x + 12,
+              Math.max(size.width - tooltipWidth - 12, 16)
+            )
+          )}px`,
+          top: `${Math.max(
+            8,
+            Math.min(
+              tooltipPosition.y + 12,
+              Math.max(size.height - 100, 40)
+            )
+          )}px`,
+        }
+      : undefined
 
   /** При k≈1 панораму ограничиваем ±половина bbox сферы (в пикселях). */
   const baseZoomPanLimit = useMemo(() => {
@@ -274,10 +459,7 @@ export function EarthMap2D({
   }, [size.width, size.height, baseZoomPanLimit.maxTx, baseZoomPanLimit.maxTy])
 
   return (
-    <div
-      ref={wrapperRef}
-      className={className ?? "h-full w-full rounded-2xl bg-slate-950"}
-    >
+    <div ref={wrapperRef} className={wrapperClassName}>
       <svg
         ref={svgRef}
         width={size.width}
@@ -286,8 +468,8 @@ export function EarthMap2D({
       >
         <defs>
           <radialGradient id="oceanGlow" cx="50%" cy="50%" r="80%">
-            <stop offset="0%" stopColor="#0f274f" />
-            <stop offset="100%" stopColor="#020817" />
+            <stop offset="0%" stopColor={palette.oceanGlowStart} />
+            <stop offset="100%" stopColor={palette.oceanGlowEnd} />
           </radialGradient>
         </defs>
 
@@ -302,29 +484,37 @@ export function EarthMap2D({
           />
           <path
             d={path({ type: "Sphere" }) ?? ""}
-            fill="#081226"
-            stroke="rgba(148,163,184,0.18)"
+            fill={palette.sphereFill}
+            stroke={palette.sphereStroke}
             strokeWidth={1}
           />
 
           <path
             d={path(graticule) ?? ""}
             fill="none"
-            stroke="rgba(148,163,184,0.12)"
+            stroke={palette.graticule}
             strokeWidth={0.7}
           />
 
-          {WORLD_FEATURES.features.map((country, index) => (
-            <path
-              key={index}
-              d={path(country) ?? ""}
-              fill="#12213d"
-              stroke="rgba(148,163,184,0.18)"
-              strokeWidth={0.6}
-            />
-          ))}
+          {WORLD_FEATURES.features.map((country, index) => {
+            const isHovered = hoveredCountry?.feature === country
 
-          {renderedSatellites.map((sat) => {
+            return (
+              <path
+                key={index}
+                d={path(country) ?? ""}
+                fill={isHovered ? highlightFill : palette.countryFill}
+                stroke={isHovered ? highlightStroke : palette.countryStroke}
+                strokeWidth={isHovered ? 1.1 : 0.6}
+                className="cursor-pointer transition-colors duration-200"
+                onMouseEnter={(event) => handleCountryHover(country, event)}
+                onMouseMove={handleCountryMove}
+                onMouseLeave={handleCountryLeave}
+              />
+            )
+          })}
+
+        {renderedSatellites.map((sat) => {
             const segments = splitTrackOnDateline(sat.path)
 
             return (
@@ -336,14 +526,14 @@ export function EarthMap2D({
                   } as GeoJSON.LineString)
 
                   return (
-                    <path
-                      key={`${sat.id}-seg-${index}`}
-                      d={lineD ?? ""}
-                      fill="none"
-                      stroke="rgba(96,165,250,0.85)"
-                      strokeWidth={2}
-                      strokeDasharray="6 6"
-                    />
+                      <path
+                        key={`${sat.id}-seg-${index}`}
+                        d={lineD ?? ""}
+                        fill="none"
+                        stroke={palette.track}
+                        strokeWidth={2}
+                        strokeDasharray="6 6"
+                      />
                   )
                 })}
 
@@ -364,20 +554,20 @@ export function EarthMap2D({
                           cx={x}
                           cy={y}
                           r={16}
-                          fill="rgba(34,197,94,0.14)"
+                          fill={palette.satelliteHalo}
                         />
                         <circle
                           cx={x}
                           cy={y}
                           r={7}
-                          fill="#10b981"
-                          stroke="white"
+                          fill={palette.satelliteCore}
+                          stroke={palette.satelliteStroke}
                           strokeWidth={2}
                         />
                         <text
                           x={x + 12}
                           y={y - 12}
-                          fill="white"
+                          fill={palette.satelliteLabel}
                           fontSize="12"
                           fontWeight="600"
                         >
@@ -391,6 +581,27 @@ export function EarthMap2D({
           })}
         </g>
       </svg>
+
+      {hoveredCountry && tooltipStyle && (
+        <div
+          style={tooltipStyle}
+          className="pointer-events-none absolute z-50 w-[220px] rounded-2xl border border-white/20 bg-slate-950/90 px-4 py-3 text-xs text-white shadow-2xl shadow-black/60 backdrop-blur"
+        >
+          <div className="text-sm font-semibold text-white">
+            {hoveredCountry.name}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-white/70">
+            <span>ISO: {hoveredCountry.iso ?? "—"}</span>
+            <span>Регион: {hoveredCountry.region ?? "—"}</span>
+          </div>
+          {hoveredCountry.center && (
+            <div className="mt-1 text-[11px] text-white/70">
+              Центр: {hoveredCountry.center[1].toFixed(2)}° N,{" "}
+              {hoveredCountry.center[0].toFixed(2)}° E
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
