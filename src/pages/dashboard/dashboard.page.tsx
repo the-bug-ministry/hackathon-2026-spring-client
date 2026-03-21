@@ -5,6 +5,7 @@ import { satellitesMapMock } from '@/entities/satellite/lib/marge';
 import { EarthGlobe3D } from '@/features/earth-globe-3d';
 import { MapViewSwitcher } from './ui/map-view-switcher';
 import { useMapViewStore } from './model';
+import { SimulationControlPanel } from '@/features/simulation';
 
 export function DashboardPage() {
     const route = getRouteApi('/_home/dashboard');
@@ -50,6 +51,19 @@ export function DashboardPage() {
             </div>
 
             <MapViewSwitcher value={mapView} onValueChange={setMapView} />
+
+            <div className="absolute bottom-2 inset-0">
+                <SimulationControlPanel
+                    currentTime="2026-03-21 11:40:22"
+                    isPlaying={true}
+                    speedLabel="1x"
+                    // onTogglePlay={() => setIsPlaying((prev) => !prev)}
+                    onTogglePlay={() => { }}
+                    onStepBack={() => console.log('step back')}
+                    onStepForward={() => console.log('step forward')}
+                    onReset={() => console.log('reset')}
+                />
+            </div>
 
             <TrackedSatellites
                 selectedSatellitesStr={selectedSatellitesStr}

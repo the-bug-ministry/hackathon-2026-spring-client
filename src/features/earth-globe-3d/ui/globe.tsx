@@ -12,7 +12,7 @@ export function EarthGlobe3D({
 
     return (
         <div className={clsx(
-            "flex h-full w-full items-center justify-center bg-slate-950 text-muted-foreground",
+            'h-full w-full rounded-2xl bg-slate-950',
             className
         )}>
             3D Глобус
