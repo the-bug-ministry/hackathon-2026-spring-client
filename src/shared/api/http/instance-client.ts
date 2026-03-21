@@ -8,7 +8,7 @@ const API_BASE_URL = import.meta.env.VITE_PUBLIC_API_URL
 type RequestParams = {
   method?: Method
   path: string
-  body?: object
+  body?: object | FormData
   signal?: AbortSignal
   headers?: Record<string, string>
   responseType?: AxiosRequestConfig["responseType"]

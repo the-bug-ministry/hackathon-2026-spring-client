@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 
 import { satellitesMock } from "@/entities/satellite/model/mock/satellites-mock"
+import { TleFileUpload } from "@/features/tle-upload"
 import { DataTable } from "@/shared/components/data-table/data-table"
 import { DataTableColumnHeader } from "@/shared/components/data-table/data-table-column-header"
 import { DataTableToolbar } from "@/shared/components/data-table/data-table-toolbar"
@@ -267,6 +268,8 @@ export function ListPage() {
           Полный список аппаратов в системе: {data.length}
         </p>
       </div>
+
+      <TleFileUpload />
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
