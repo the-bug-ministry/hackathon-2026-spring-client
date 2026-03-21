@@ -22,6 +22,8 @@ import type { Topology, GeometryCollection } from "topojson-specification"
 import { cn } from "@/shared/lib/utils"
 import { propagateSatellitePosition } from "@/entities/satellite/lib/propagation"
 import type { OrbitalPosition } from "@/entities/satellite/lib/propagation"
+import { COUNTRY_NAME_RU_BY_EN } from "@/shared/config/country-names-ru"
+import { OrbitPreloader } from "@/shared/components/ui/orbit-preloader"
 
 /** Порог «базового» масштаба для ограничения панорамы. */
 const BASE_ZOOM_EPS = 1e-4
@@ -144,6 +146,13 @@ const COUNTRY_DISPLAY_NAMES_RU =
   typeof Intl !== "undefined" && typeof Intl.DisplayNames !== "undefined"
     ? new Intl.DisplayNames(["ru"], { type: "region" })
     : { of: () => undefined }
+const COUNTRY_RU_FALLBACKS: Record<string, string> = {
+  XK: "Косово",
+  SX: "Синт-Мартен",
+  CW: "Кюрасао",
+  BQ: "Карибские Нидерланды",
+  IC: "Канарские острова",
+}
 
 function getLabelOpacity(scale: number) {
   const normalized = Math.min(1, Math.max(0, (scale - 1) / 3))
@@ -209,7 +218,16 @@ function resolveCountryName(feature: GeoJSON.Feature) {
 
   if (ruName) return ruName
 
+  const rawName = (props.name as string) ?? (props.NAME as string)
+  if (rawName && COUNTRY_NAME_RU_BY_EN[rawName]) {
+    return COUNTRY_NAME_RU_BY_EN[rawName]
+  }
+
   const iso2 = resolveCountryIso2(feature)?.toUpperCase()
+  if (iso2 && COUNTRY_RU_FALLBACKS[iso2]) {
+    return COUNTRY_RU_FALLBACKS[iso2]
+  }
+
   if (iso2) {
     try {
       const displayName = COUNTRY_DISPLAY_NAMES_RU.of(iso2)
@@ -217,6 +235,11 @@ function resolveCountryName(feature: GeoJSON.Feature) {
     } catch (_) {
       /* ignore */
     }
+  }
+
+  const iso3 = resolveCountryIso(feature)?.toUpperCase()
+  if (iso3 && COUNTRY_RU_FALLBACKS[iso3]) {
+    return COUNTRY_RU_FALLBACKS[iso3]
   }
 
   return (
@@ -387,6 +410,7 @@ export function EarthMap2D({
     x: number
     y: number
   } | null>(null)
+  const [isReady, setIsReady] = useState(false)
   const [labelOpacity, setLabelOpacity] = useState(() => getLabelOpacity(1))
   const [hoveredSatelliteId, setHoveredSatelliteId] = useState<string | null>(
     null
@@ -419,6 +443,11 @@ export function EarthMap2D({
     observer.observe(wrapperRef.current)
     return () => observer.disconnect()
   }, [])
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => setIsReady(true))
+    return () => cancelAnimationFrame(frame)
+  }, [size.width, size.height])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -510,7 +539,7 @@ export function EarthMap2D({
   const wrapperClassName = cn(
     className ?? "h-full w-full rounded-2xl",
     mapTheme === "dark" ? "bg-slate-950" : "bg-slate-50",
-    "relative"
+    "relative overflow-hidden"
   )
   const highlightFill =
     mapTheme === "dark" ? "rgba(59,130,246,0.25)" : "rgba(14,116,144,0.25)"
@@ -603,12 +632,25 @@ export function EarthMap2D({
 
   return (
     <div ref={wrapperRef} className={wrapperClassName}>
-      <svg
-        ref={svgRef}
-        width={size.width}
-        height={size.height}
-        className="block max-h-full max-w-full cursor-move touch-none select-none"
+      {!isReady && (
+        <OrbitPreloader
+          label="Загружаем 2D‑карту"
+          hint="Подготавливаем орбиты и границы"
+        />
+      )}
+
+      <div
+        className={cn(
+          "transition-opacity duration-500",
+          isReady ? "opacity-100" : "opacity-0"
+        )}
       >
+        <svg
+          ref={svgRef}
+          width={size.width}
+          height={size.height}
+          className="block max-h-full max-w-full cursor-move touch-none select-none"
+        >
         <defs>
           <radialGradient id="oceanGlow" cx="50%" cy="50%" r="80%">
             <stop offset="0%" stopColor={palette.oceanGlowStart} />
@@ -856,6 +898,7 @@ export function EarthMap2D({
           )}
         </div>
       )}
+    </div>
     </div>
   )
 }

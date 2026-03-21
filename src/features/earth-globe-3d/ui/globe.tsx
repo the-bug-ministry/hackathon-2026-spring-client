@@ -5,6 +5,7 @@ import { OrbitControls, Html, Stars } from "@react-three/drei"
 import { useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import clsx from "clsx"
+import { OrbitPreloader } from "@/shared/components/ui/orbit-preloader"
 import type { SatelliteMap } from "@/entities/satellite/model"
 import { geoNaturalEarth1, geoPath } from "d3-geo"
 import { feature, mesh } from "topojson-client"
@@ -533,6 +534,7 @@ export function EarthGlobe3D({
   simulationTime,
 }: EarthGlobe3DProps) {
   const [theme, setTheme] = useState<GlobeTheme>("dark")
+  const [isSceneReady, setIsSceneReady] = useState(false)
   const [globeLabelOpacity, setGlobeLabelOpacity] = useState(1)
   const [hoveredSatelliteId, setHoveredSatelliteId] = useState<string | null>(
     null
@@ -552,6 +554,11 @@ export function EarthGlobe3D({
     })
 
     return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const fallback = window.setTimeout(() => setIsSceneReady(true), 1500)
+    return () => window.clearTimeout(fallback)
   }, [])
 
   const mapTexture = useMemo(() => createMapTexture(theme), [theme])
@@ -587,87 +594,102 @@ export function EarthGlobe3D({
         className
       )}
     >
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900/90 to-slate-950/60" />
-      <Canvas
-        className="relative h-full w-full"
-        style={{ height: "100%" }}
-        camera={{ position: [0, 0, 6.5], fov: 45 }}
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
+      {!isSceneReady && (
+        <OrbitPreloader
+          label="Загружаем 3D‑глобус"
+          hint="Прогреваем текстуры и орбиты"
+        />
+      )}
+
+      <div
+        className={clsx(
+          "h-full w-full transition-opacity duration-700",
+          isSceneReady ? "opacity-100" : "opacity-0"
+        )}
       >
-        <color attach="background" args={[isDark ? "#020617" : "#eef2ff"]} />
-        <fog attach="fog" args={[isDark ? "#020617" : "#eef2ff", 6, 28]} />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900/90 to-slate-950/60" />
+        <Canvas
+          className="relative h-full w-full"
+          style={{ height: "100%" }}
+          camera={{ position: [0, 0, 6.5], fov: 45 }}
+          gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
+          onCreated={() => setIsSceneReady(true)}
+        >
+          <color attach="background" args={[isDark ? "#020617" : "#eef2ff"]} />
+          <fog attach="fog" args={[isDark ? "#020617" : "#eef2ff", 6, 28]} />
 
-        <ambientLight intensity={0.8} color={isDark ? "#8fb5ff" : "#f8fafc"} />
-        <directionalLight
-          intensity={1.2}
-          position={[5, 3, 5]}
-          color={"#ffffff"}
-        />
-        <pointLight intensity={0.6} position={[-4, -2, -4]} color="#60a5fa" />
-
-        <Stars
-          radius={120}
-          depth={60}
-          count={4000}
-          factor={6}
-          saturation={0}
-          fade
-          speed={0.3}
-        />
-
-        <group rotation={[0, Math.PI, 0]}>
-          <mesh>
-            <sphereGeometry args={[2, 128, 128]} />
-            <primitive object={earthMaterial} attach="material" />
-          </mesh>
-
-          <mesh>
-            <sphereGeometry args={[2.03, 128, 128]} />
-            <meshStandardMaterial
-              color={glowColor}
-              transparent
-              opacity={0.2}
-              depthWrite={false}
-            />
-          </mesh>
-        </group>
-
-        <lineSegments>
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              args={[borderPositions, 3]}
-            />
-          </bufferGeometry>
-          <lineBasicMaterial
-            color={borderColor}
-            linewidth={1.5}
-            transparent
-            opacity={0.6}
+          <ambientLight intensity={0.8} color={isDark ? "#8fb5ff" : "#f8fafc"} />
+          <directionalLight
+            intensity={1.2}
+            position={[5, 3, 5]}
+            color={"#ffffff"}
           />
-        </lineSegments>
+          <pointLight intensity={0.6} position={[-4, -2, -4]} color="#60a5fa" />
 
-        <SatelliteVisualizationLayer
-          satellites={satellites}
-          trackedSatelliteIds={trackedSatelliteIds}
-          hoveredSatelliteId={hoveredSatelliteId}
-          onSatelliteHover={setHoveredSatelliteId}
-          simulationTime={simulationTime}
-          onSatelliteClick={onSatelliteClick}
-          labelOpacity={globeLabelOpacity}
-        />
-        <GlobeLabelOpacityController setOpacity={setGlobeLabelOpacity} />
+          <Stars
+            radius={120}
+            depth={60}
+            count={4000}
+            factor={6}
+            saturation={0}
+            fade
+            speed={0.3}
+          />
 
-        <OrbitControls
-          enablePan={false}
-          minDistance={3}
-          maxDistance={12}
-          autoRotate
-          autoRotateSpeed={0.4}
-          rotateSpeed={0.4}
-          dampingFactor={0.1}
-        />
-      </Canvas>
+          <group rotation={[0, Math.PI, 0]}>
+            <mesh>
+              <sphereGeometry args={[2, 128, 128]} />
+              <primitive object={earthMaterial} attach="material" />
+            </mesh>
+
+            <mesh>
+              <sphereGeometry args={[2.03, 128, 128]} />
+              <meshStandardMaterial
+                color={glowColor}
+                transparent
+                opacity={0.2}
+                depthWrite={false}
+              />
+            </mesh>
+          </group>
+
+          <lineSegments>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                args={[borderPositions, 3]}
+              />
+            </bufferGeometry>
+            <lineBasicMaterial
+              color={borderColor}
+              linewidth={1.5}
+              transparent
+              opacity={0.6}
+            />
+          </lineSegments>
+
+          <SatelliteVisualizationLayer
+            satellites={satellites}
+            trackedSatelliteIds={trackedSatelliteIds}
+            hoveredSatelliteId={hoveredSatelliteId}
+            onSatelliteHover={setHoveredSatelliteId}
+            simulationTime={simulationTime}
+            onSatelliteClick={onSatelliteClick}
+            labelOpacity={globeLabelOpacity}
+          />
+          <GlobeLabelOpacityController setOpacity={setGlobeLabelOpacity} />
+
+          <OrbitControls
+            enablePan={false}
+            minDistance={3}
+            maxDistance={12}
+            autoRotate
+            autoRotateSpeed={0.4}
+            rotateSpeed={0.4}
+            dampingFactor={0.1}
+          />
+        </Canvas>
+      </div>
     </div>
   )
 }

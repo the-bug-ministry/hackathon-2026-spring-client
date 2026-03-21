@@ -8,13 +8,13 @@ import { useEffect, useState } from "react"
 
 import { cn } from "@/shared/lib/utils"
 import { ChevronRightIcon, Globe, LogIn, SatelliteIcon } from "lucide-react"
-import { PROJECT_NAME } from "@/shared/config/site"
 import {
   Avatar,
   AvatarFallback,
   AvatarImage,
 } from "@/shared/components/ui/avatar"
 import { useAuth } from "@/entities/auth/lib/use-auth"
+import { LogoIcon } from "@/shared/icon/base"
 
 const navBtnClass = cn(
   "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium",
@@ -169,11 +169,9 @@ export const AppHeader = () => {
   return (
     <header className="absolute z-20 flex min-h-11 w-full items-center border-b border-sidebar-border bg-sidebar py-1.5 text-sidebar-foreground">
       <div className="flex w-full items-center justify-between gap-4 px-2">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center">
           <SidebarTrigger className="h-8 w-8 shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
-          <span className="text-sm font-semibold tracking-tight text-sidebar-foreground">
-            {PROJECT_NAME}
-          </span>
+          <LogoIcon size="md" className="shrink-0 text-sidebar-foreground" />
         </div>
 
         <div className="flex items-center gap-6">
@@ -233,7 +231,7 @@ export const AppHeader = () => {
 
             <Separator
               orientation="vertical"
-              className="h-5 self-center bg-sidebar-border"
+              className="h-11 self-center bg-sidebar-border"
             />
 
             <HeaderUserProfile isActive={isProfileActive} />

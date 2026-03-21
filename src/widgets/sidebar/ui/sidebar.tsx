@@ -29,12 +29,8 @@ export const SatellitesMenuList = () => {
   } = useSatelliteCatalog()
 
   return (
-    <SidebarGroup className="gap-0">
+    <SidebarGroup className="gap-0 py-3">
       <div className="space-y-4 px-2 pb-4">
-        <SidebarGroupLabel className="px-0 text-sm font-semibold tracking-wide text-foreground">
-          Спутники
-        </SidebarGroupLabel>
-
         {!isMockSource && (
           <Tabs
             value={satelliteDataLayer}
