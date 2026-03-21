@@ -485,6 +485,24 @@ export function EarthMap2D({
       { type: "Sphere" }
     )
   }, [size])
+  const hoveredCountrySatMarkers = useMemo(() => {
+    if (!hoveredCountry) return []
+    return renderedSatellites
+      .filter((sat) => isOverCountry(hoveredCountry.feature, sat.current))
+      .map((sat) => {
+        const point = sat.current
+          ? projection([sat.current.lng, sat.current.lat])
+          : null
+        return point
+          ? {
+              id: sat.id,
+              name: sat.name,
+              point,
+            }
+          : null
+      })
+      .filter((v): v is { id: string; name: string; point: [number, number] } => Boolean(v))
+  }, [hoveredCountry, renderedSatellites, projection])
 
   const path = useMemo(() => geoPath(projection), [projection])
   const graticule = useMemo(() => geoGraticule10(), [])
@@ -722,6 +740,45 @@ export function EarthMap2D({
               </g>
             )
           })}
+
+          {hoveredCountrySatMarkers.length > 0 && (
+            <g>
+              {hoveredCountrySatMarkers.map((marker) => {
+                const [x, y] = marker.point
+                return (
+                  <g key={`hover-marker-${marker.id}`} pointerEvents="none">
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r={7}
+                      fill={palette.satelliteCore}
+                      stroke={palette.satelliteStroke}
+                      strokeWidth={1.5}
+                    />
+                    <circle
+                      cx={x}
+                      cy={y}
+                      r={13}
+                      fill="none"
+                      stroke={highlightStroke}
+                      strokeWidth={1.5}
+                      strokeDasharray="4 3"
+                    />
+                    <text
+                      x={x + 10}
+                      y={y - 8}
+                      fill={palette.satelliteLabel}
+                      fontSize="10"
+                      fontWeight="700"
+                      style={{ opacity: labelOpacity }}
+                    >
+                      {marker.name}
+                    </text>
+                  </g>
+                )
+              })}
+            </g>
+          )}
         </g>
       </svg>
 
