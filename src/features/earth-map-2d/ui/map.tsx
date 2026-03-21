@@ -14,6 +14,7 @@ const BASE_ZOOM_EPS = 1e-4
 
 type EarthMap2DProps = {
   satellites: SatelliteMap[]
+  trackedSatelliteIds?: string[]
   className?: string
   onSatelliteClick?: (id: string) => void
 }
@@ -257,6 +258,7 @@ function useRenderedSatellites(satellites: SatelliteMap[]) {
 
 export function EarthMap2D({
   satellites,
+  trackedSatelliteIds,
   className,
   onSatelliteClick,
 }: EarthMap2DProps) {
@@ -274,6 +276,10 @@ export function EarthMap2D({
     y: number
   } | null>(null)
   const renderedSatellites = useRenderedSatellites(satellites)
+  const trackedIds = useMemo(
+    () => new Set(trackedSatelliteIds ?? []),
+    [trackedSatelliteIds]
+  )
 
   useEffect(() => {
     if (!wrapperRef.current) return
@@ -514,18 +520,20 @@ export function EarthMap2D({
             )
           })}
 
-        {renderedSatellites.map((sat) => {
-            const segments = splitTrackOnDateline(sat.path)
+          {renderedSatellites.map((sat) => {
+            const isTracked = trackedIds.has(sat.id)
+            const segments = isTracked ? splitTrackOnDateline(sat.path) : []
 
             return (
               <g key={sat.id}>
-                {segments.map((segment, index) => {
-                  const lineD = path({
-                    type: "LineString",
-                    coordinates: segment,
-                  } as GeoJSON.LineString)
+                {isTracked &&
+                  segments.map((segment, index) => {
+                    const lineD = path({
+                      type: "LineString",
+                      coordinates: segment,
+                    } as GeoJSON.LineString)
 
-                  return (
+                    return (
                       <path
                         key={`${sat.id}-seg-${index}`}
                         d={lineD ?? ""}
@@ -534,8 +542,8 @@ export function EarthMap2D({
                         strokeWidth={2}
                         strokeDasharray="6 6"
                       />
-                  )
-                })}
+                    )
+                  })}
 
                 {sat.current &&
                   (() => {
@@ -553,26 +561,29 @@ export function EarthMap2D({
                         <circle
                           cx={x}
                           cy={y}
-                          r={16}
+                          r={isTracked ? 16 : 8}
                           fill={palette.satelliteHalo}
+                          opacity={isTracked ? 1 : 0.35}
                         />
                         <circle
                           cx={x}
                           cy={y}
-                          r={7}
+                          r={isTracked ? 7 : 3.5}
                           fill={palette.satelliteCore}
                           stroke={palette.satelliteStroke}
-                          strokeWidth={2}
+                          strokeWidth={isTracked ? 2 : 1}
                         />
-                        <text
-                          x={x + 12}
-                          y={y - 12}
-                          fill={palette.satelliteLabel}
-                          fontSize="12"
-                          fontWeight="600"
-                        >
-                          {sat.name}
-                        </text>
+                        {isTracked && (
+                          <text
+                            x={x + 12}
+                            y={y - 12}
+                            fill={palette.satelliteLabel}
+                            fontSize="11"
+                            fontWeight="600"
+                          >
+                            {sat.name}
+                          </text>
+                        )}
                       </g>
                     )
                   })()}

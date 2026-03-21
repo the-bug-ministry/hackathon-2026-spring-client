@@ -23,6 +23,8 @@ const BORDER_MESH = mesh(
 type EarthGlobe3DProps = {
   className?: string
   satellites?: SatelliteMap[]
+  trackedSatelliteIds?: string[]
+  onSatelliteClick?: (id: string) => void
 }
 
 type SatellitePointProps = {
@@ -30,6 +32,7 @@ type SatellitePointProps = {
   lng: number
   name: string
   altitudeKm: number
+  showLabel?: boolean
 }
 
 type SatPosition = {
@@ -298,7 +301,12 @@ function createMapTexture(theme: GlobeTheme) {
   return texture
 }
 
-function SatellitePoint({ lat, lng, name }: SatellitePointProps) {
+function SatellitePoint({
+  lat,
+  lng,
+  name,
+  showLabel = false,
+}: SatellitePointProps) {
   const position = useMemo(() => latLngToVector3(lat, lng, 2.025), [lat, lng])
 
   return (
@@ -313,11 +321,13 @@ function SatellitePoint({ lat, lng, name }: SatellitePointProps) {
         <meshBasicMaterial color="#22c55e" transparent opacity={0.15} />
       </mesh>
 
-      <Html distanceFactor={12} center>
-        <div className="pointer-events-none rounded-full bg-slate-950/70 px-2 py-0.5 text-[8px] font-semibold text-white/90 shadow-lg backdrop-blur">
-          {name}
-        </div>
-      </Html>
+      {showLabel && (
+        <Html distanceFactor={12} center>
+          <div className="pointer-events-none rounded-full bg-slate-950/70 px-2 py-0.5 text-[8px] font-semibold text-white/90 shadow-lg backdrop-blur">
+            {name}
+          </div>
+        </Html>
+      )}
     </group>
   )
 }
@@ -415,37 +425,59 @@ function SatelliteCoverageRing({
 
 function RenderedSatelliteMarker({
   satellite,
+  showTrack,
+  onSelect,
 }: {
   satellite: RenderedSatellite3D
+  showTrack: boolean
+  onSelect?: (id: string) => void
 }) {
   if (!satellite.current) return null
 
   const { current } = satellite
 
   return (
-    <group>
+    <group
+      onPointerDown={(event) => {
+        event.stopPropagation()
+        onSelect?.(satellite.id)
+      }}
+    >
       <SatellitePoint
         lat={current.lat}
         lng={current.lng}
         name={satellite.name}
         altitudeKm={current.altitudeKm}
+        showLabel={showTrack}
       />
-      <SatelliteTrack path={satellite.path} />
-      <SatelliteCoverageRing
-        lat={current.lat}
-        lng={current.lng}
-        altitudeKm={current.altitudeKm}
-      />
+      {showTrack && (
+        <>
+          <SatelliteTrack path={satellite.path} />
+          <SatelliteCoverageRing
+            lat={current.lat}
+            lng={current.lng}
+            altitudeKm={current.altitudeKm}
+          />
+        </>
+      )}
     </group>
   )
 }
 
 function SatelliteVisualizationLayer({
   satellites = [],
+  trackedSatelliteIds = [],
+  onSatelliteClick,
 }: {
   satellites?: SatelliteMap[]
+  trackedSatelliteIds?: string[]
+  onSatelliteClick?: (id: string) => void
 }) {
   const rendered = useRenderedSatellites(satellites)
+  const trackedSet = useMemo(
+    () => new Set(trackedSatelliteIds ?? []),
+    [trackedSatelliteIds]
+  )
 
   if (!rendered.length) {
     return <MockSatelliteLayer satellites={satellites} />
@@ -454,7 +486,12 @@ function SatelliteVisualizationLayer({
   return (
     <>
       {rendered.map((satellite) => (
-        <RenderedSatelliteMarker key={satellite.id} satellite={satellite} />
+        <RenderedSatelliteMarker
+          key={satellite.id}
+          satellite={satellite}
+          showTrack={trackedSet.has(satellite.id)}
+          onSelect={onSatelliteClick}
+        />
       ))}
     </>
   )
@@ -463,6 +500,8 @@ function SatelliteVisualizationLayer({
 export function EarthGlobe3D({
   className,
   satellites = [],
+  trackedSatelliteIds = [],
+  onSatelliteClick,
 }: EarthGlobe3DProps) {
   const [theme, setTheme] = useState<GlobeTheme>("dark")
 
@@ -567,7 +606,11 @@ export function EarthGlobe3D({
           <lineBasicMaterial color={borderColor} linewidth={1.5} transparent opacity={0.6} />
         </lineSegments>
 
-        <SatelliteVisualizationLayer satellites={satellites} />
+        <SatelliteVisualizationLayer
+          satellites={satellites}
+          trackedSatelliteIds={trackedSatelliteIds}
+          onSatelliteClick={onSatelliteClick}
+        />
 
         <OrbitControls
           enablePan={false}

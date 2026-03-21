@@ -5,9 +5,11 @@ import { useMemo } from "react"
 export const TrackedSatellites = ({
   selectedSatellitesStr,
   handleClose,
+  handleResetAll,
 }: {
   selectedSatellitesStr: string | undefined
   handleClose: (id: string) => void
+  handleResetAll: () => void
 }) => {
   const selectedIds = useMemo(() => {
     return selectedSatellitesStr
@@ -22,7 +24,18 @@ export const TrackedSatellites = ({
   return (
     <div className="absolute right-4 bottom-4 flex max-h-[calc(100vh-112px)] w-[360px] flex-col overflow-hidden rounded-2xl border border-border/70 bg-background/95 shadow-2xl backdrop-blur">
       <div className="shrink-0 border-b border-border/70 px-4 py-3 text-sm font-medium text-muted-foreground">
-        Выбрано спутников: {selectedSatellites.length}
+        <div className="flex items-center justify-between gap-3">
+          <span>Выбрано спутников: {selectedSatellites.length}</span>
+          {selectedSatellites.length > 0 && (
+            <button
+              type="button"
+              onClick={handleResetAll}
+              className="rounded-full border border-border/80 px-3 py-0.5 text-[11px] font-semibold text-emerald-400 transition hover:border-emerald-300 hover:text-emerald-200"
+            >
+              Сбросить все
+            </button>
+          )}
+        </div>
       </div>
       <div className="flex-1 overflow-auto">
         {selectedSatellites.length > 0 ? (

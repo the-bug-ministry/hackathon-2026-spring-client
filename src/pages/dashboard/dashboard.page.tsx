@@ -19,23 +19,34 @@ export function DashboardPage() {
         ? selectedSatellitesStr.split(",").filter(Boolean)
         : []
 
-    const selectedSatellites = satellitesMapMock.filter((sat) =>
-        selectedIds.includes(sat.id)
-    )
+    const setSatelliteSearch = (ids: string[]) => {
+        navigate({
+            search: (prev) => ({
+                ...prev,
+                satellites: ids.length ? ids.join(",") : undefined,
+            }),
+        })
+    }
+
+    const handleSelectSatellite = (satelliteId: string) => {
+        if (selectedIds.includes(satelliteId)) {
+            return
+        }
+
+        setSatelliteSearch([...selectedIds, satelliteId])
+    }
 
     const handleCloseSatellite = (satelliteId: string) => {
+        const next = selectedIds.filter((id) => id !== satelliteId)
+        setSatelliteSearch(next)
+    }
+
+    const handleResetTracked = () => {
         navigate({
             search: (prev) => {
-                const current = prev.satellites
-                    ? prev.satellites.split(",").filter(Boolean)
-                    : []
-
-                const next = current.filter((id) => id !== satelliteId)
-
-                return {
-                    ...prev,
-                    satellites: next.join(","),
-                }
+                const next = { ...prev }
+                delete next.satellites
+                return next
             },
         })
     }
@@ -44,9 +55,17 @@ export function DashboardPage() {
         <div className="relative inset-0">
             <div className="relative inset-0 m-2 h-[90vh] overflow-hidden rounded-2xl">
                 {mapView === "2d" ? (
-                    <EarthMap2D satellites={selectedSatellites} />
+                    <EarthMap2D
+                        satellites={satellitesMapMock}
+                        trackedSatelliteIds={selectedIds}
+                        onSatelliteClick={handleSelectSatellite}
+                    />
                 ) : (
-                    <EarthGlobe3D satellites={selectedSatellites} />
+                    <EarthGlobe3D
+                        satellites={satellitesMapMock}
+                        trackedSatelliteIds={selectedIds}
+                        onSatelliteClick={handleSelectSatellite}
+                    />
                 )}
             </div>
 
@@ -68,6 +87,7 @@ export function DashboardPage() {
             <TrackedSatellites
                 selectedSatellitesStr={selectedSatellitesStr}
                 handleClose={handleCloseSatellite}
+                handleResetAll={handleResetTracked}
             />
         </div>
     )
