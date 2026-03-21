@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useRef } from "react"
 import { UploadIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -6,16 +6,22 @@ import { Button } from "@/shared/components/ui/button"
 import { cn } from "@/shared/lib/utils"
 import { useTleUpload } from "@/entities/satellite/lib"
 
+function isTxtFile(file: File): boolean {
+  return file.name.toLowerCase().endsWith(".txt")
+}
+
 export function TleFileUpload() {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [fileName, setFileName] = useState<string | null>(null)
 
   const { mutate, isPending } = useTleUpload()
 
   const handleFile = (file: File | undefined) => {
     if (!file) return
 
-    setFileName(file.name)
+    if (!isTxtFile(file)) {
+      toast.error("Можно загрузить только файл в формате .txt")
+      return
+    }
 
     mutate(
       { file },
@@ -42,11 +48,7 @@ export function TleFileUpload() {
             Загрузка TLE
           </h2>
           <p className="text-xs text-slate-600 dark:text-slate-400">
-            Файл отправляется на сервер (multipart, поле{" "}
-            <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">
-              file
-            </code>
-            )
+            Загрузите файл для отслеживания спутников (.txt)
           </p>
         </div>
 
@@ -55,7 +57,7 @@ export function TleFileUpload() {
             ref={inputRef}
             type="file"
             className="sr-only"
-            accept="*/*"
+            accept=".txt,text/plain"
             disabled={isPending}
             onChange={(e) => {
               handleFile(e.target.files?.[0])

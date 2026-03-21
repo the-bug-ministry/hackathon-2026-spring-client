@@ -77,7 +77,12 @@ function useAuth(): AuthData {
       return { ...utils, account: null, status: "UNAUTHENTICATED", meError }
 
     default:
-      return { ...utils, account: authQuery.data, status: "AUTHENTICATED", meError: null }
+      return {
+        ...utils,
+        account: authQuery.data,
+        status: "AUTHENTICATED",
+        meError: null,
+      }
   }
 }
 
