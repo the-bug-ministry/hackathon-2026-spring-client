@@ -40,9 +40,9 @@ export function ProfilePage() {
   const isDisabled = isLoading || !account
 
   return (
-    <div className="flex h-full w-full flex-col gap-6 p-6 md:p-10">
-      <div className="sticky top-0 z-10 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40">
-        <h1 className="text-2xl font-bold tracking-tight">Профиль</h1>
+    <div className="flex h-full w-full flex-col gap-4 p-3 sm:gap-6 sm:p-6 md:p-10">
+      <div className="rounded-2xl border border-slate-200 bg-white/85 p-4 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40 sm:sticky sm:top-2 sm:z-10 sm:p-6">
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Профиль</h1>
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Управляй своими данными и настройками аккаунта
         </p>
@@ -55,10 +55,10 @@ export function ProfilePage() {
       )}
 
       <div className="flex min-h-0 flex-1 overflow-hidden">
-        <div className="min-h-0 flex-1 overflow-auto">
-          <div className="flex min-h-0 w-full flex-col gap-6">
+        <div className="min-h-0 flex-1 overflow-auto pb-16 sm:pb-6">
+          <div className="flex min-h-0 w-full flex-col gap-4 sm:gap-6">
             <Card className="rounded-2xl">
-              <CardContent className="flex items-center gap-6 p-6">
+              <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-6">
                 <Avatar className="h-16 w-16">
                   {fields.image ? (
                     <AvatarImage src={fields.image} alt={displayName} />
@@ -67,17 +67,17 @@ export function ProfilePage() {
                   )}
                 </Avatar>
 
-                <div className="flex flex-col">
-                  <span className="text-lg font-semibold">
+                <div className="flex min-w-0 flex-col gap-1">
+                  <span className="truncate text-lg font-semibold">
                     {isLoading ? "Загружается..." : displayName}
                   </span>
-                  <span className="text-sm text-muted-foreground">
+                  <span className="truncate text-sm text-muted-foreground">
                     {fields.email || "Email не указан"}
                   </span>
                 </div>
 
-                <div className="ml-auto">
-                  <Button variant="outline" disabled={isDisabled}>
+                <div className="sm:ml-auto w-full sm:w-auto">
+                  <Button variant="outline" disabled={isDisabled} className="w-full sm:w-auto">
                     Изменить
                   </Button>
                 </div>
@@ -85,13 +85,17 @@ export function ProfilePage() {
             </Card>
 
             <Tabs defaultValue="profile" className="space-y-4">
-              <TabsList className="gap-0 rounded-3xl p-[3px]" variant="default">
-                <TabsTrigger value="profile">Личные данные</TabsTrigger>
-                <TabsTrigger value="tle">Список TLE дампов</TabsTrigger>
+              <TabsList className="gap-1 rounded-3xl p-[3px] overflow-x-auto flex-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" variant="default">
+                <TabsTrigger value="profile" className="whitespace-nowrap px-4">
+                  Личные данные
+                </TabsTrigger>
+                <TabsTrigger value="tle" className="whitespace-nowrap px-4">
+                  Список TLE дампов
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="profile">
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
                   <Card className="rounded-2xl">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2">
@@ -121,7 +125,7 @@ export function ProfilePage() {
                         />
                       </div>
 
-                      <Button className="w-fit" disabled={isDisabled}>
+                      <Button className="w-full sm:w-fit" disabled={isDisabled}>
                         Сохранить
                       </Button>
                     </CardContent>
@@ -147,7 +151,7 @@ export function ProfilePage() {
 
                       <Button
                         variant="outline"
-                        className="w-fit"
+                        className="w-full sm:w-fit"
                         disabled={isDisabled}
                       >
                         Изменить email
@@ -168,7 +172,7 @@ export function ProfilePage() {
                     <CardContent className="space-y-4">
                       <Button
                         variant="outline"
-                        className="w-fit"
+                        className="w-full sm:w-fit"
                         disabled={isDisabled}
                       >
                         Сменить пароль
@@ -178,7 +182,7 @@ export function ProfilePage() {
 
                       <Button
                         variant="destructive"
-                        className="flex w-fit items-center gap-2"
+                        className="flex w-full sm:w-fit items-center gap-2"
                         disabled={isLoading}
                       >
                         <LogOutIcon className="size-4 w-fit" /> Выйти из

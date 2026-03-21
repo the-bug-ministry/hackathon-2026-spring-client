@@ -7,6 +7,15 @@ import { MapViewSwitcher } from "./ui/map-view-switcher"
 import { useMapViewStore } from "./model"
 import { SimulationControlPanel } from "@/features/simulation"
 import { useEffect, useMemo, useRef, useState } from "react"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/shared/components/ui/sheet"
+import { Button } from "@/shared/components/ui/button"
+import { SatelliteIcon } from "lucide-react"
 
 const formatSimulationTime = (date: Date) => {
   const pad = (value: number) => value.toString().padStart(2, "0")
@@ -15,7 +24,7 @@ const formatSimulationTime = (date: Date) => {
   )}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
-const SPEED_LEVELS = [1, 2, 4, 8]
+const SPEED_LEVELS = [1, 2, 4, 8, 16, 32]
 
 export function DashboardPage() {
   const { catalog: satellitesCatalog } = useSatelliteCatalog()
@@ -65,6 +74,7 @@ export function DashboardPage() {
   const [speedMultiplier, setSpeedMultiplier] = useState<number>(
     SPEED_LEVELS[0]
   )
+  const [isTrackedSheetOpen, setTrackedSheetOpen] = useState(false)
   const animationFrameRef = useRef<number>(0)
   const lastFrameTimeRef = useRef<number>(0)
 
@@ -140,7 +150,7 @@ export function DashboardPage() {
 
       <MapViewSwitcher value={mapView} onValueChange={setMapView} />
 
-      <div className="pointer-events-none absolute inset-0 bottom-2 z-20">
+      <div className="pointer-events-none absolute inset-0 bottom-0 z-20">
         <SimulationControlPanel
           currentTime={currentTimeLabel}
           isPlaying={isPlaying}
@@ -153,12 +163,52 @@ export function DashboardPage() {
         />
       </div>
 
-      <TrackedSatellites
-        selectedSatellitesStr={selectedSatellitesStr}
-        handleClose={handleCloseSatellite}
-        handleResetAll={handleResetTracked}
-        simulationTime={simulationTime}
-      />
+      <div className="hidden md:block">
+        <TrackedSatellites
+          selectedSatellitesStr={selectedSatellitesStr}
+          handleClose={handleCloseSatellite}
+          handleResetAll={handleResetTracked}
+          simulationTime={simulationTime}
+          variant="desktop"
+        />
+      </div>
+
+      <div className="md:hidden max-h-screen">
+        <Sheet open={isTrackedSheetOpen} onOpenChange={setTrackedSheetOpen}>
+          <SheetTrigger asChild>
+            <Button
+              className="fixed bottom-32 right-4 z-30 rounded-full bg-primary px-4 py-3 text-primary-foreground shadow-lg shadow-primary/40 hover:bg-primary/90"
+              size="sm"
+            >
+              <SatelliteIcon className="size-4 mr-2" />
+              Отслеживаемые
+              {selectedIds.length > 0 && (
+                <span className="ml-2 rounded-full bg-white/20 px-2 text-xs font-semibold">
+                  {selectedIds.length}
+                </span>
+              )}
+            </Button>
+          </SheetTrigger>
+          <SheetContent
+            side="bottom"
+            className="h-[88vh] max-h-[88vh] rounded-t-3xl p-0 flex flex-col overflow-hidden"
+            showCloseButton
+          >
+            <SheetHeader className="border-b border-border/60">
+              <SheetTitle className="px-4 py-2 text-base">Отслеживаемые спутники</SheetTitle>
+            </SheetHeader>
+            <div className="flex-1 overflow-auto p-3 pt-2 pb-6">
+              <TrackedSatellites
+                selectedSatellitesStr={selectedSatellitesStr}
+                handleClose={handleCloseSatellite}
+                handleResetAll={handleResetTracked}
+                simulationTime={simulationTime}
+                variant="mobile"
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
     </div>
   )
 }

@@ -21,7 +21,12 @@ const navBtnClass = cn(
   "text-sidebar-foreground transition-colors"
 )
 
-function HeaderUserProfile({ isActive }: { isActive: boolean }) {
+type HeaderUserProfileProps = {
+  isActive: boolean
+  variant?: "full" | "compact"
+}
+
+function HeaderUserProfile({ isActive, variant = "full" }: HeaderUserProfileProps) {
   const { account, status } = useAuth()
 
   if (status === "PENDING") {
@@ -71,9 +76,49 @@ function HeaderUserProfile({ isActive }: { isActive: boolean }) {
     "flex max-w-[260px] min-w-0 items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar-accent/35 px-2 py-1 transition-colors",
     "text-sidebar-foreground",
     !isActive &&
-      "group hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar focus-visible:outline-none",
+    "group hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar focus-visible:outline-none",
     isActive && "cursor-default border-sidebar-border/80 bg-sidebar-accent/50"
   )
+
+  if (variant === "compact") {
+    const buttonClass = cn(
+      "inline-flex h-10 w-10 items-center justify-center rounded-full border border-sidebar-border/80 bg-sidebar-accent/30 text-sidebar-foreground transition-colors shadow-sm",
+      !isActive &&
+      "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar focus-visible:outline-none",
+      isActive && "cursor-default border-sidebar-border/70 bg-sidebar-accent/60"
+    )
+
+    const avatar = (
+      <Avatar className="h-8 w-8 shrink-0 border border-sidebar-border bg-sidebar">
+        <AvatarImage src={account.image} alt="" />
+        <AvatarFallback className="bg-sidebar-accent text-[10px] font-semibold text-sidebar-foreground">
+          {initials}
+        </AvatarFallback>
+      </Avatar>
+    )
+
+    if (isActive) {
+      return (
+        <div
+          className={buttonClass}
+          aria-current="page"
+          aria-label={`Текущая страница: профиль, ${displayName}`}
+        >
+          {avatar}
+        </div>
+      )
+    }
+
+    return (
+      <Link
+        to="/dashboard/profile"
+        aria-label={`Профиль: ${displayName}`}
+        className={cn(buttonClass, "cursor-pointer")}
+      >
+        {avatar}
+      </Link>
+    )
+  }
 
   const body = (
     <>
@@ -91,7 +136,7 @@ function HeaderUserProfile({ isActive }: { isActive: boolean }) {
           className={cn(
             "mt-0.5 block text-[11px] font-medium text-sidebar-foreground/80",
             !isActive &&
-              "underline-offset-2 group-hover:text-sidebar-accent-foreground group-hover:underline"
+            "underline-offset-2 group-hover:text-sidebar-accent-foreground group-hover:underline"
           )}
         >
           Профиль
@@ -167,28 +212,29 @@ export const AppHeader = () => {
     "focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar focus-visible:outline-none"
   )
   return (
-    <header className="absolute z-20 flex min-h-11 w-full items-center border-b border-sidebar-border bg-sidebar py-1.5 text-sidebar-foreground">
-      <div className="flex w-full items-center justify-between gap-4 px-2">
-        <div className="flex items-center">
-          <SidebarTrigger className="h-8 w-8 shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
-          <LogoIcon size="md" className="shrink-0 text-sidebar-foreground" />
+    <header className="sticky top-0 z-30 flex w-full items-center border-b border-sidebar-border/60 bg-sidebar/95 px-2.5 py-2 text-sidebar-foreground backdrop-blur-md shadow-sm">
+      <div className="flex w-full items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 min-w-0">
+          <SidebarTrigger className="h-9 w-9 shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg" />
+          <LogoIcon size="sm" className="shrink-0 text-sidebar-foreground block sm:hidden" />
+          <LogoIcon size="md" className="shrink-0 text-sidebar-foreground hidden sm:block" />
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-1.5 sm:gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-end items-center gap-2 overflow-x-auto pb-1 pr-1 sm:gap-3 sm:pb-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {isMapActive ? (
               <span
                 className={cn(
                   navBtnClass,
-                  "cursor-default bg-sidebar-accent/50"
+                  "cursor-default bg-sidebar-accent/60"
                 )}
                 aria-current="page"
               >
-                <Globe className="size-3.5 shrink-0" aria-hidden />
+                <Globe className="size-4 shrink-0" aria-hidden />
                 Карта
               </span>
             ) : (
-              <Button asChild variant="ghost" className="h-8 min-w-0 px-0">
+              <Button asChild variant="ghost" className="h-9 min-w-0 px-0">
                 <Link
                   to="/dashboard"
                   search={{ satellites: "" }}
@@ -197,7 +243,7 @@ export const AppHeader = () => {
                     "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
-                  <Globe className="size-3.5 shrink-0" aria-hidden />
+                  <Globe className="size-4 shrink-0" aria-hidden />
                   Карта
                 </Link>
               </Button>
@@ -207,15 +253,15 @@ export const AppHeader = () => {
               <span
                 className={cn(
                   navBtnClass,
-                  "cursor-default bg-sidebar-accent/50"
+                  "cursor-default bg-sidebar-accent/60"
                 )}
                 aria-current="page"
               >
-                <SatelliteIcon className="size-3.5 shrink-0" aria-hidden />
+                <SatelliteIcon className="size-4 shrink-0" aria-hidden />
                 Спутники
               </span>
             ) : (
-              <Button asChild variant="ghost" className="h-8 min-w-0 px-0">
+              <Button asChild variant="ghost" className="h-9 min-w-0 px-0">
                 <Link
                   to="/dashboard/list"
                   className={cn(
@@ -223,25 +269,28 @@ export const AppHeader = () => {
                     "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
-                  <SatelliteIcon className="size-3.5 shrink-0" aria-hidden />
+                  <SatelliteIcon className="size-4 shrink-0" aria-hidden />
                   Спутники
                 </Link>
               </Button>
             )}
 
-            <Separator
-              orientation="vertical"
-              className="h-11 self-center bg-sidebar-border"
-            />
-
-            <HeaderUserProfile isActive={isProfileActive} />
+            <div className="hidden sm:flex">
+              <Separator
+                orientation="vertical"
+                className="mx-1 h-10 self-center bg-sidebar-border"
+              />
+              <HeaderUserProfile isActive={isProfileActive} variant="full" />
+            </div>
           </div>
+        </div>
 
+        <div className="flex items-center gap-2">
           <Swap
             role="button"
             onClick={toggleTheme}
             aria-label={`Переключить на ${isDarkTheme ? "светлую" : "тёмную"} тему`}
-            className={themeSwitchClasses}
+            className={cn(themeSwitchClasses, "hidden sm:inline-flex")}
           >
             <SwapOff>
               <MoonIcon className="size-5" />
@@ -251,6 +300,9 @@ export const AppHeader = () => {
               <SunIcon className="size-5" />
             </SwapOn>
           </Swap>
+          <div className="sm:hidden">
+            <HeaderUserProfile isActive={isProfileActive} variant="compact" />
+          </div>
         </div>
       </div>
     </header>
