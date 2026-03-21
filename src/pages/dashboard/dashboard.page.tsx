@@ -151,6 +151,7 @@ export function DashboardPage() {
                 selectedSatellitesStr={selectedSatellitesStr}
                 handleClose={handleCloseSatellite}
                 handleResetAll={handleResetTracked}
+                simulationTime={simulationTime}
             />
         </div>
     )

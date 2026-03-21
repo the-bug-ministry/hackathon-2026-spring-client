@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from "react"
-import * as satellite from "satellite.js"
 import { select } from "d3-selection"
 import { zoom, zoomIdentity, ZoomTransform } from "d3-zoom"
 import { geoPath, geoGraticule10, geoEqualEarth, geoCentroid } from "d3-geo"
@@ -8,6 +7,8 @@ import worldAtlas from "world-atlas/countries-110m.json"
 import type { SatelliteMap } from "@/entities/satellite/model"
 import type { Topology, GeometryCollection } from "topojson-specification"
 import { cn } from "@/shared/lib/utils"
+import { propagateSatellitePosition } from "@/entities/satellite/lib/propagation"
+import type { OrbitalPosition } from "@/entities/satellite/lib/propagation"
 
 /** Порог «базового» масштаба для ограничения панорамы. */
 const BASE_ZOOM_EPS = 1e-4
@@ -20,12 +21,7 @@ type EarthMap2DProps = {
   onSatelliteClick?: (id: string) => void
 }
 
-type SatPosition = {
-  lat: number
-  lng: number
-  altitudeKm: number
-  speedKms: number
-}
+type SatPosition = OrbitalPosition
 
 type RenderedSatellite = {
   id: string
@@ -112,49 +108,16 @@ type HoveredCountry = {
   center: [number, number] | null
 }
 
-function normalizeLng(lng: number) {
-  let value = lng
-  while (value > 180) value -= 360
-  while (value < -180) value += 360
-  return value
-}
+const MIN_LABEL_OPACITY = 0.35
+const MAX_LABEL_OPACITY = 1
 
-function propagateSatellite(
-  tle1: string,
-  tle2: string,
-  at: Date
-): SatPosition | null {
-  if (!tle1 || !tle2) return null
-
-  const satrec = satellite.twoline2satrec(tle1, tle2)
-  const pv = satellite.propagate(satrec, at)
-
-  const position = pv?.position
-  const velocity = pv?.velocity
-
-  if (!position || !velocity) return null
-
-  const gmst = satellite.gstime(at)
-  const geodetic = satellite.eciToGeodetic(position, gmst)
-
-  const lat = satellite.degreesLat(geodetic.latitude)
-  const lng = normalizeLng(satellite.degreesLong(geodetic.longitude))
-  const altitudeKm = geodetic.height
-
-  const { x, y, z } = velocity
-  const speedKms = Math.sqrt(x * x + y * y + z * z)
-
-  return {
-    lat,
-    lng,
-    altitudeKm,
-    speedKms,
-  }
+function getLabelOpacity(scale: number) {
+  const normalized = Math.min(1, Math.max(0, (scale - 1) / 3))
+  return MIN_LABEL_OPACITY + normalized * (MAX_LABEL_OPACITY - MIN_LABEL_OPACITY)
 }
 
 function buildTrack(
-  tle1: string,
-  tle2: string,
+  satellite: SatelliteMap,
   now: Date,
   minutesBack = 30,
   minutesForward = 90,
@@ -162,7 +125,7 @@ function buildTrack(
 ) {
   const points: Array<[number, number]> = []
 
-  if (!tle1 || !tle2) return points
+  if (!satellite.tle1 || !satellite.tle2) return points
 
   for (
     let offset = -minutesBack * 60;
@@ -170,7 +133,7 @@ function buildTrack(
     offset += stepSec
   ) {
     const date = new Date(now.getTime() + offset * 1000)
-    const pos = propagateSatellite(tle1, tle2, date)
+    const pos = propagateSatellitePosition(satellite, date)
     if (pos) points.push([pos.lng, pos.lat])
   }
 
@@ -241,8 +204,8 @@ function useRenderedSatellites(satellites: SatelliteMap[], referenceTime: Date) 
       id: sat.id,
       name: sat.name,
       type: sat.type,
-      current: propagateSatellite(sat.tle1, sat.tle2, referenceTime),
-      path: buildTrack(sat.tle1, sat.tle2, referenceTime),
+      current: propagateSatellitePosition(sat, referenceTime),
+      path: buildTrack(sat, referenceTime),
     }))
   }, [satellites, referenceTime])
 }
@@ -267,6 +230,7 @@ export function EarthMap2D({
     x: number
     y: number
   } | null>(null)
+  const [labelOpacity, setLabelOpacity] = useState(() => getLabelOpacity(1))
   const now = simulationTime ?? new Date()
   const renderedSatellites = useRenderedSatellites(satellites, now)
   const trackedIds = useMemo(
@@ -436,6 +400,7 @@ export function EarthMap2D({
       .on("zoom", (event) => {
         mapTransformRef.current = event.transform
         zoomLayer.attr("transform", event.transform.toString())
+        setLabelOpacity(getLabelOpacity(event.transform.k))
       })
       .on("start", (event) => {
         const src = event.sourceEvent
@@ -573,6 +538,7 @@ export function EarthMap2D({
                             fill={palette.satelliteLabel}
                             fontSize="11"
                             fontWeight="600"
+                            style={{ opacity: labelOpacity }}
                           >
                             {sat.name}
                           </text>

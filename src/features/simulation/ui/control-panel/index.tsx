@@ -79,6 +79,7 @@ export function SimulationControlPanel({
           type="button"
           onClick={onSpeedChange}
           className="px-2 text-sm font-semibold text-primary transition hover:opacity-80"
+          title="Сменить скорость симуляции"
         >
           {speedLabel}
         </button>

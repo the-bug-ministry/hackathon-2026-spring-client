@@ -1,8 +1,8 @@
 "use client"
 
-import { Canvas } from "@react-three/fiber"
+import { Canvas, useFrame } from "@react-three/fiber"
 import { OrbitControls, Html, Stars } from "@react-three/drei"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import clsx from "clsx"
 import type { SatelliteMap } from "@/entities/satellite/model"
@@ -10,7 +10,8 @@ import { geoNaturalEarth1, geoPath } from "d3-geo"
 import { feature, mesh } from "topojson-client"
 import worldAtlas from "world-atlas/countries-110m.json"
 import type { Topology, GeometryCollection } from "topojson-specification"
-import * as satellite from "satellite.js"
+import { propagateSatellitePosition } from "@/entities/satellite/lib/propagation"
+import type { OrbitalPosition } from "@/entities/satellite/lib/propagation"
 
 const atlas = worldAtlas as unknown as Topology<{ countries: GeometryCollection }>
 const COUNTRY_FEATURES = feature(atlas, atlas.objects.countries) as GeoJSON.FeatureCollection
@@ -34,14 +35,10 @@ type SatellitePointProps = {
   name: string
   altitudeKm: number
   showLabel?: boolean
+  labelOpacity?: number
 }
 
-type SatPosition = {
-  lat: number
-  lng: number
-  altitudeKm: number
-  speedKms: number
-}
+type SatPosition = OrbitalPosition
 
 type RenderedSatellite3D = {
   id: string
@@ -57,6 +54,33 @@ const EARTH_RADIUS_KM = 6371
 const DEG_TO_RAD = Math.PI / 180
 const RAD_TO_DEG = 180 / Math.PI
 
+const MIN_GLOBE_LABEL_OPACITY = 0.35
+const MAX_GLOBE_LABEL_OPACITY = 1
+
+function getGlobeLabelOpacity(distance: number) {
+  const normalized = Math.min(1, Math.max(0, (distance - 3) / 6))
+  return (
+    MIN_GLOBE_LABEL_OPACITY +
+    (1 - normalized) * (MAX_GLOBE_LABEL_OPACITY - MIN_GLOBE_LABEL_OPACITY)
+  )
+}
+
+function GlobeLabelOpacityController({
+  setOpacity,
+}: {
+  setOpacity: (value: number) => void
+}) {
+  const lastUpdateRef = useRef(0)
+
+  useFrame(({ camera }) => {
+    const now = performance.now()
+    if (now - lastUpdateRef.current < 120) return
+    lastUpdateRef.current = now
+    setOpacity(getGlobeLabelOpacity(camera.position.length()))
+  })
+
+  return null
+}
 function latLngToVector3(lat: number, lng: number, radius = 2.02) {
   const phi = (90 - lat) * (Math.PI / 180)
   const theta = (lng + 180) * (Math.PI / 180)
@@ -68,42 +92,8 @@ function latLngToVector3(lat: number, lng: number, radius = 2.02) {
   return new THREE.Vector3(x, y, z)
 }
 
-function propagateSatellite(
-  tle1: string,
-  tle2: string,
-  at: Date
-): SatPosition | null {
-  if (!tle1 || !tle2) return null
-
-  const satrec = satellite.twoline2satrec(tle1, tle2)
-  const pv = satellite.propagate(satrec, at)
-
-  const position = pv?.position
-  const velocity = pv?.velocity
-
-  if (!position || !velocity) return null
-
-  const gmst = satellite.gstime(at)
-  const geodetic = satellite.eciToGeodetic(position, gmst)
-
-  const lat = satellite.degreesLat(geodetic.latitude)
-  const lng = satellite.degreesLong(geodetic.longitude)
-  const altitudeKm = geodetic.height
-
-  const { x, y, z } = velocity
-  const speedKms = Math.sqrt(x * x + y * y + z * z)
-
-  return {
-    lat,
-    lng,
-    altitudeKm,
-    speedKms,
-  }
-}
-
 function buildTrack(
-  tle1: string,
-  tle2: string,
+  satellite: SatelliteMap,
   now: Date,
   minutesBack = 30,
   minutesForward = 90,
@@ -111,7 +101,7 @@ function buildTrack(
 ) {
   const points: Array<[number, number]> = []
 
-  if (!tle1 || !tle2) return points
+  if (!satellite.tle1 || !satellite.tle2) return points
 
   for (
     let offset = -minutesBack * 60;
@@ -119,7 +109,7 @@ function buildTrack(
     offset += stepSec
   ) {
     const date = new Date(now.getTime() + offset * 1000)
-    const pos = propagateSatellite(tle1, tle2, date)
+    const pos = propagateSatellitePosition(satellite, date)
     if (pos) points.push([pos.lng, pos.lat])
   }
 
@@ -221,8 +211,8 @@ function useRenderedSatellites(
       id: sat.id,
       name: sat.name,
       type: sat.type,
-      current: propagateSatellite(sat.tle1, sat.tle2, referenceTime),
-      path: buildTrack(sat.tle1, sat.tle2, referenceTime),
+      current: propagateSatellitePosition(sat, referenceTime),
+      path: buildTrack(sat, referenceTime),
     }))
   }, [satellites, referenceTime])
 }
@@ -300,6 +290,7 @@ function SatellitePoint({
   lng,
   name,
   showLabel = false,
+  labelOpacity = 1,
 }: SatellitePointProps) {
   const position = useMemo(() => latLngToVector3(lat, lng, 2.025), [lat, lng])
 
@@ -317,7 +308,10 @@ function SatellitePoint({
 
       {showLabel && (
         <Html distanceFactor={12} center>
-          <div className="pointer-events-none rounded-full bg-slate-950/70 px-2 py-0.5 text-[8px] font-semibold text-white/90 shadow-lg backdrop-blur">
+          <div
+            className="pointer-events-none rounded-full bg-slate-950/70 px-2 py-0.5 text-[8px] font-semibold text-white/90 shadow-lg backdrop-blur"
+            style={{ opacity: labelOpacity }}
+          >
             {name}
           </div>
         </Html>
@@ -421,10 +415,12 @@ function RenderedSatelliteMarker({
   satellite,
   showTrack,
   onSelect,
+  labelOpacity,
 }: {
   satellite: RenderedSatellite3D
   showTrack: boolean
   onSelect?: (id: string) => void
+  labelOpacity?: number
 }) {
   if (!satellite.current) return null
 
@@ -443,6 +439,7 @@ function RenderedSatelliteMarker({
         name={satellite.name}
         altitudeKm={current.altitudeKm}
         showLabel={showTrack}
+        labelOpacity={labelOpacity}
       />
       {showTrack && (
         <>
@@ -463,11 +460,13 @@ function SatelliteVisualizationLayer({
   trackedSatelliteIds = [],
   simulationTime,
   onSatelliteClick,
+  labelOpacity = 1,
 }: {
   satellites?: SatelliteMap[]
   trackedSatelliteIds?: string[]
   simulationTime?: Date
   onSatelliteClick?: (id: string) => void
+  labelOpacity?: number
 }) {
   const rendered = useRenderedSatellites(
     satellites,
@@ -490,6 +489,7 @@ function SatelliteVisualizationLayer({
           satellite={satellite}
           showTrack={trackedSet.has(satellite.id)}
           onSelect={onSatelliteClick}
+          labelOpacity={labelOpacity}
         />
       ))}
     </>
@@ -504,6 +504,7 @@ export function EarthGlobe3D({
   simulationTime,
 }: EarthGlobe3DProps) {
   const [theme, setTheme] = useState<GlobeTheme>("dark")
+  const [globeLabelOpacity, setGlobeLabelOpacity] = useState(1)
 
   useEffect(() => {
     const resolveTheme = () =>
@@ -611,7 +612,9 @@ export function EarthGlobe3D({
           trackedSatelliteIds={trackedSatelliteIds}
           simulationTime={simulationTime}
           onSatelliteClick={onSatelliteClick}
+          labelOpacity={globeLabelOpacity}
         />
+        <GlobeLabelOpacityController setOpacity={setGlobeLabelOpacity} />
 
         <OrbitControls
           enablePan={false}
