@@ -20,7 +20,7 @@ export const TrackedSatellites = ({
   }, [selectedIds])
 
   return (
-    <div className="absolute right-4 bottom-4 flex max-h-[calc(100vh-82px)] w-[360px] flex-col overflow-hidden rounded-2xl border border-border/70 bg-background/95 shadow-2xl backdrop-blur">
+    <div className="absolute right-4 bottom-4 flex max-h-[calc(100vh-112px)] w-[360px] flex-col overflow-hidden rounded-2xl border border-border/70 bg-background/95 shadow-2xl backdrop-blur">
       <div className="shrink-0 border-b border-border/70 px-4 py-3 text-sm font-medium text-muted-foreground">
         Выбрано спутников: {selectedSatellites.length}
       </div>
