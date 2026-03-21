@@ -1,5 +1,5 @@
-import { satellitesMapMock } from "@/entities/satellite/lib/marge"
 import { SatelliteMetaCard } from "@/entities/satellite/ui"
+import { useSatelliteCatalog } from "@/pages/dashboard/model/satellite-catalog-context"
 import { useMemo } from "react"
 import {
   propagateSatellitePosition,
@@ -18,6 +18,8 @@ export const TrackedSatellites = ({
   handleResetAll: () => void
   simulationTime: Date
 }) => {
+  const { catalog } = useSatelliteCatalog()
+
   const selectedIds = useMemo(() => {
     return selectedSatellitesStr
       ? selectedSatellitesStr.split(",").filter(Boolean)
@@ -25,8 +27,8 @@ export const TrackedSatellites = ({
   }, [selectedSatellitesStr])
 
   const selectedSatellites = useMemo(() => {
-    return satellitesMapMock.filter((sat) => selectedIds.includes(sat.id))
-  }, [selectedIds])
+    return catalog.filter((sat) => selectedIds.includes(sat.id))
+  }, [catalog, selectedIds])
 
   const selectedPositions = useMemo(() => {
     const map = new Map<string, OrbitalPosition>()
@@ -95,7 +97,7 @@ export const TrackedSatellites = ({
                 Спутники не выбраны
               </div>
               <div className="text-xs text-muted-foreground/70">
-                Выберите спутники в списке слева
+                Выберите спутники на карте
               </div>
             </div>
           </div>

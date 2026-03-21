@@ -1,8 +1,8 @@
 import { getRouteApi } from "@tanstack/react-router"
 import { TrackedSatellites } from "../../features/tracked-satellites"
 import { EarthMap2D } from "@/features/earth-map-2d"
-import { satellitesMapMock } from "@/entities/satellite/lib/marge"
 import { EarthGlobe3D } from "@/features/earth-globe-3d"
+import { useSatelliteCatalog } from "@/pages/dashboard/model/satellite-catalog-context"
 import { MapViewSwitcher } from "./ui/map-view-switcher"
 import { useMapViewStore } from "./model"
 import { SimulationControlPanel } from "@/features/simulation"
@@ -18,6 +18,7 @@ const formatSimulationTime = (date: Date) => {
 const SPEED_LEVELS = [1, 2, 4, 8]
 
 export function DashboardPage() {
+  const { catalog: satellitesCatalog } = useSatelliteCatalog()
   const route = getRouteApi("/_home/dashboard")
   const { satellites: selectedSatellitesStr } = route.useSearch()
   const navigate = route.useNavigate()
@@ -124,14 +125,14 @@ export function DashboardPage() {
       <div className="relative inset-0 m-2 h-[90vh] overflow-hidden rounded-2xl">
         {mapView === "2d" ? (
           <EarthMap2D
-            satellites={satellitesMapMock}
+            satellites={satellitesCatalog}
             simulationTime={simulationTime}
             trackedSatelliteIds={selectedIds}
             onSatelliteClick={handleSelectSatellite}
           />
         ) : (
           <EarthGlobe3D
-            satellites={satellitesMapMock}
+            satellites={satellitesCatalog}
             simulationTime={simulationTime}
             trackedSatelliteIds={selectedIds}
             onSatelliteClick={handleSelectSatellite}
