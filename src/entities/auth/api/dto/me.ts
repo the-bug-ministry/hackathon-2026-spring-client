@@ -1,7 +1,7 @@
-import type { Account } from '@/entities/account/model';
+import type { Account } from "@/entities/account/model"
 
 export type MeParams = {
-    signal?: AbortSignal;
+  signal?: AbortSignal
 }
 
-export type MeResponse = Account;
+export type MeResponse = Account

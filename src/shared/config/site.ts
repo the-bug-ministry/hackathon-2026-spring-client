@@ -1,2 +1,2 @@
-export const COMPANY_NAME = 'Pied Piper';
-export const PROJECT_NAME = 'Орбитекс';
+export const COMPANY_NAME = "Pied Piper"
+export const PROJECT_NAME = "Орбитекс"

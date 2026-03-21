@@ -1,6 +1,6 @@
-import { ListPage } from '@/pages/list/list.page'
-import { createFileRoute } from '@tanstack/react-router'
+import { ListPage } from "@/pages/list/list.page"
+import { createFileRoute } from "@tanstack/react-router"
 
-export const Route = createFileRoute('/_home/dashboard/list')({
-    component: ListPage,
+export const Route = createFileRoute("/_home/dashboard/list")({
+  component: ListPage,
 })

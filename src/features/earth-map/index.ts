@@ -1,1 +1,1 @@
-export {  EarthMap } from './ui/map';
+export { EarthMap } from "./ui/map"

@@ -1,1 +1,1 @@
-export type { Account } from './types/account.interface';
+export type { Account } from "./types/account.interface"

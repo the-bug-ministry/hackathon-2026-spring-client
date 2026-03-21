@@ -1,7 +1,7 @@
-import { flexRender, type Table as TanstackTable } from "@tanstack/react-table";
-import type * as React from "react";
+import { flexRender, type Table as TanstackTable } from "@tanstack/react-table"
+import type * as React from "react"
 
-import { DataTablePagination } from "@/shared/components/data-table/data-table-pagination";
+import { DataTablePagination } from "@/shared/components/data-table/data-table-pagination"
 import {
   Table,
   TableBody,
@@ -9,13 +9,13 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/shared/components/ui/table";
-import { getColumnPinningStyle } from "@/shared/lib/data-table";
-import { cn } from "@/shared/lib/utils";
+} from "@/shared/components/ui/table"
+import { getColumnPinningStyle } from "@/shared/lib/data-table"
+import { cn } from "@/shared/lib/utils"
 
 interface DataTableProps<TData> extends React.ComponentProps<"div"> {
-  table: TanstackTable<TData>;
-  actionBar?: React.ReactNode;
+  table: TanstackTable<TData>
+  actionBar?: React.ReactNode
 }
 
 export function DataTable<TData>({
@@ -47,9 +47,9 @@ export function DataTable<TData>({
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -71,7 +71,7 @@ export function DataTable<TData>({
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
-                        cell.getContext(),
+                        cell.getContext()
                       )}
                     </TableCell>
                   ))}
@@ -97,5 +97,5 @@ export function DataTable<TData>({
           actionBar}
       </div>
     </div>
-  );
+  )
 }

@@ -1,5 +1,5 @@
-declare module 'd3-geo-projection' {
-    import { GeoProjection } from 'd3-geo';
+declare module "d3-geo-projection" {
+  import { GeoProjection } from "d3-geo"
 
-    export function geoNaturalEarth1(): GeoProjection;
+  export function geoNaturalEarth1(): GeoProjection
 }

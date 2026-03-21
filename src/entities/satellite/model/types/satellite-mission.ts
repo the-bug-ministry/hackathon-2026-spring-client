@@ -1,6 +1,6 @@
 export type SatelliteMission =
-    | 'Science'
-    | 'Observation'
-    | 'Weather'
-    | 'Communication'
-    | 'Navigation';
+  | "Science"
+  | "Observation"
+  | "Weather"
+  | "Communication"
+  | "Navigation"

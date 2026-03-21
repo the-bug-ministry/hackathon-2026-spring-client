@@ -1,23 +1,23 @@
-import type { Column } from "@tanstack/react-table";
-import { dataTableConfig } from "@/config/data-table";
+import type { Column } from "@tanstack/react-table"
+import { dataTableConfig } from "@/config/data-table"
 import type {
   ExtendedColumnFilter,
   FilterOperator,
   FilterVariant,
-} from "@/types/data-table";
+} from "@/types/data-table"
 
 export function getColumnPinningStyle<TData>({
   column,
   withBorder = false,
 }: {
-  column: Column<TData>;
-  withBorder?: boolean;
+  column: Column<TData>
+  withBorder?: boolean
 }): React.CSSProperties {
-  const isPinned = column.getIsPinned();
+  const isPinned = column.getIsPinned()
   const isLastLeftPinnedColumn =
-    isPinned === "left" && column.getIsLastColumn("left");
+    isPinned === "left" && column.getIsLastColumn("left")
   const isFirstRightPinnedColumn =
-    isPinned === "right" && column.getIsFirstColumn("right");
+    isPinned === "right" && column.getIsFirstColumn("right")
 
   return {
     boxShadow: withBorder
@@ -34,7 +34,7 @@ export function getColumnPinningStyle<TData>({
     background: isPinned ? "var(--background)" : "var(--background)",
     width: column.getSize(),
     zIndex: isPinned ? 1 : undefined,
-  };
+  }
 }
 
 export function getFilterOperators(filterVariant: FilterVariant) {
@@ -50,19 +50,19 @@ export function getFilterOperators(filterVariant: FilterVariant) {
     boolean: dataTableConfig.booleanOperators,
     select: dataTableConfig.selectOperators,
     multiSelect: dataTableConfig.multiSelectOperators,
-  };
+  }
 
-  return operatorMap[filterVariant] ?? dataTableConfig.textOperators;
+  return operatorMap[filterVariant] ?? dataTableConfig.textOperators
 }
 
 export function getDefaultFilterOperator(filterVariant: FilterVariant) {
-  const operators = getFilterOperators(filterVariant);
+  const operators = getFilterOperators(filterVariant)
 
-  return operators[0]?.value ?? (filterVariant === "text" ? "iLike" : "eq");
+  return operators[0]?.value ?? (filterVariant === "text" ? "iLike" : "eq")
 }
 
 export function getValidFilters<TData>(
-  filters: ExtendedColumnFilter<TData>[],
+  filters: ExtendedColumnFilter<TData>[]
 ): ExtendedColumnFilter<TData>[] {
   return filters.filter(
     (filter) =>
@@ -71,7 +71,7 @@ export function getValidFilters<TData>(
       (Array.isArray(filter.value)
         ? filter.value.length > 0
         : filter.value !== "" &&
-        filter.value !== null &&
-        filter.value !== undefined),
-  );
+          filter.value !== null &&
+          filter.value !== undefined)
+  )
 }

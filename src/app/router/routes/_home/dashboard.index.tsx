@@ -1,10 +1,9 @@
-import { DashboardPage } from '@/pages/dashboard/dashboard.page'
-import { createFileRoute } from '@tanstack/react-router'
+import { DashboardPage } from "@/pages/dashboard/dashboard.page"
+import { createFileRoute } from "@tanstack/react-router"
 
-export const Route = createFileRoute('/_home/dashboard/')({
- validateSearch: (search: Record<string, unknown>) => ({
-    satellites:
-      typeof search.satellites === 'string' ? search.satellites : '',
+export const Route = createFileRoute("/_home/dashboard/")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    satellites: typeof search.satellites === "string" ? search.satellites : "",
   }),
   component: DashboardPage,
 })

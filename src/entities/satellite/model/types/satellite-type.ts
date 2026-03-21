@@ -1,1 +1,1 @@
-export type SatelliteType = 'LEO' | 'MEO' | 'GEO' | 'Polar';
+export type SatelliteType = "LEO" | "MEO" | "GEO" | "Polar"

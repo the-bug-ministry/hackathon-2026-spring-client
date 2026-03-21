@@ -1,9 +1,9 @@
-import type { Account } from '../../../account/model';
+import type { Account } from "../../../account/model"
 
 export type AuthParams = {
-    username: string;
-    password: string;
-    signal?: AbortSignal;
+  username: string
+  password: string
+  signal?: AbortSignal
 }
 
-export type AuthResponse = Account;
+export type AuthResponse = Account

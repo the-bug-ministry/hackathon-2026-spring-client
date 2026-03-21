@@ -1,2 +1,2 @@
-export { SatelliteMetaCard } from './satellite-meta-card';
-export { SatellitesMenuList } from './satellites-list';
+export { SatelliteMetaCard } from "./satellite-meta-card"
+export { SatellitesMenuList } from "./satellites-list"

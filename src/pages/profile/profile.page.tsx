@@ -1,140 +1,130 @@
 import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    CardDescription,
-} from '@/shared/components/ui/card';
-
-import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar';
-import { Button } from '@/shared/components/ui/button';
-import { Input } from '@/shared/components/ui/input';
-import { Label } from '@/shared/components/ui/label';
-import { Separator } from '@/shared/components/ui/separator';
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/shared/components/ui/card"
 
 import {
-    MailIcon,
-    UserIcon,
-    ShieldIcon,
-    LogOutIcon
-} from 'lucide-react';
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/shared/components/ui/avatar"
+import { Button } from "@/shared/components/ui/button"
+import { Input } from "@/shared/components/ui/input"
+import { Label } from "@/shared/components/ui/label"
+import { Separator } from "@/shared/components/ui/separator"
+
+import { MailIcon, UserIcon, ShieldIcon, LogOutIcon } from "lucide-react"
 
 export function ProfilePage() {
-    return (
-        <div className="p-6 max-w-5xl mx-auto space-y-6">
-            {/* HEADER */}
-            <div>
-                <h1 className="text-2xl font-bold tracking-tight">Профиль</h1>
-                <p className="text-muted-foreground">
-                    Управляй своими данными и настройками аккаунта
-                </p>
+  return (
+    <div className="mx-auto max-w-5xl space-y-6 p-6">
+      {/* HEADER */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Профиль</h1>
+        <p className="text-muted-foreground">
+          Управляй своими данными и настройками аккаунта
+        </p>
+      </div>
+
+      {/* PROFILE CARD */}
+      <Card className="rounded-2xl">
+        <CardContent className="flex items-center gap-6 p-6">
+          <Avatar className="h-16 w-16">
+            <AvatarImage src="" />
+            <AvatarFallback>ND</AvatarFallback>
+          </Avatar>
+
+          <div className="flex flex-col">
+            <span className="text-lg font-semibold">Nick Datsky</span>
+            <span className="text-sm text-muted-foreground">
+              nickitadatsky@gmail.com
+            </span>
+          </div>
+
+          <div className="ml-auto">
+            <Button variant="outline">Изменить</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        {/* PERSONAL INFO */}
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserIcon className="size-4" />
+              Личные данные
+            </CardTitle>
+            <CardDescription>Обнови информацию о себе</CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Имя</Label>
+              <Input placeholder="Ваше имя" defaultValue="Nick" />
             </div>
 
-            {/* PROFILE CARD */}
-            <Card className="rounded-2xl">
-                <CardContent className="flex items-center gap-6 p-6">
-                    <Avatar className="h-16 w-16">
-                        <AvatarImage src="" />
-                        <AvatarFallback>ND</AvatarFallback>
-                    </Avatar>
-
-                    <div className="flex flex-col">
-                        <span className="text-lg font-semibold">Nick Datsky</span>
-                        <span className="text-sm text-muted-foreground">
-                            nickitadatsky@gmail.com
-                        </span>
-                    </div>
-
-                    <div className="ml-auto">
-                        <Button variant="outline">Изменить</Button>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* PERSONAL INFO */}
-                <Card className="rounded-2xl">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <UserIcon className="size-4" />
-                            Личные данные
-                        </CardTitle>
-                        <CardDescription>
-                            Обнови информацию о себе
-                        </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Имя</Label>
-                            <Input placeholder="Ваше имя" defaultValue="Nick" />
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label>Фамилия</Label>
-                            <Input placeholder="Ваша фамилия" defaultValue="Datsky" />
-                        </div>
-
-                        <Button className="w-full">Сохранить</Button>
-                    </CardContent>
-                </Card>
-
-                {/* EMAIL */}
-                <Card className="rounded-2xl">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <MailIcon className="size-4" />
-                            Email
-                        </CardTitle>
-                        <CardDescription>
-                            Управление почтой
-                        </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                            <Label>Email</Label>
-                            <Input
-                                type="email"
-                                defaultValue="nickitadatsky@gmail.com"
-                            />
-                        </div>
-
-                        <Button variant="outline" className="w-full">
-                            Изменить email
-                        </Button>
-                    </CardContent>
-                </Card>
-
-                {/* SECURITY */}
-                <Card className="rounded-2xl md:col-span-2">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <ShieldIcon className="size-4" />
-                            Безопасность
-                        </CardTitle>
-                        <CardDescription>
-                            Настройки безопасности аккаунта
-                        </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="space-y-4">
-                        <Button variant="outline" className="w-full">
-                            Сменить пароль
-                        </Button>
-
-                        <Separator />
-
-                        <Button
-                            variant="destructive"
-                            className="w-full flex items-center gap-2"
-                        >
-                            <LogOutIcon className="size-4" />
-                            Выйти из аккаунта
-                        </Button>
-                    </CardContent>
-                </Card>
+            <div className="space-y-2">
+              <Label>Фамилия</Label>
+              <Input placeholder="Ваша фамилия" defaultValue="Datsky" />
             </div>
-        </div>
-    );
+
+            <Button className="w-full">Сохранить</Button>
+          </CardContent>
+        </Card>
+
+        {/* EMAIL */}
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MailIcon className="size-4" />
+              Email
+            </CardTitle>
+            <CardDescription>Управление почтой</CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input type="email" defaultValue="nickitadatsky@gmail.com" />
+            </div>
+
+            <Button variant="outline" className="w-full">
+              Изменить email
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* SECURITY */}
+        <Card className="rounded-2xl md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldIcon className="size-4" />
+              Безопасность
+            </CardTitle>
+            <CardDescription>Настройки безопасности аккаунта</CardDescription>
+          </CardHeader>
+
+          <CardContent className="space-y-4">
+            <Button variant="outline" className="w-full">
+              Сменить пароль
+            </Button>
+
+            <Separator />
+
+            <Button
+              variant="destructive"
+              className="flex w-full items-center gap-2"
+            >
+              <LogOutIcon className="size-4" />
+              Выйти из аккаунта
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
 }

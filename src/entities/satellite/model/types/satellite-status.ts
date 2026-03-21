@@ -1,1 +1,1 @@
-export type SatelliteStatus = 'Active' | 'Inactive';
+export type SatelliteStatus = "Active" | "Inactive"
