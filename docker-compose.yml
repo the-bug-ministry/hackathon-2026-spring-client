@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+      args:
+        VITE_PUBLIC_ENV: dev
+    env_file:
+      - .env.development
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+
+  app-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+      args:
+        VITE_PUBLIC_ENV: prod
+    env_file:
+      - .env.prod
+    ports:
+      - "4173:80"

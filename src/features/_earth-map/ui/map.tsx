@@ -29,19 +29,6 @@ type RenderedSatellite = {
   path: Array<[number, number]>
 }
 
-type WorldAtlasTopology = {
-  type: string
-  objects: {
-    countries: object
-  }
-  arcs: unknown[]
-  bbox?: number[]
-  transform?: {
-    scale: [number, number]
-    translate: [number, number]
-  }
-}
-
 function toFeatureCollection(
   value: GeoJSON.Feature | GeoJSON.FeatureCollection
 ): GeoJSON.FeatureCollection {
