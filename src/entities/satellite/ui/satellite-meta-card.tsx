@@ -1,3 +1,4 @@
+import type { ComponentType, SVGProps } from "react"
 import { Button } from "@/shared/components/ui/button"
 import { Badge } from "@/shared/components/ui/badge"
 import { Separator } from "@/shared/components/ui/separator"
@@ -39,7 +40,7 @@ function InfoItem({
   label,
   value,
 }: {
-  icon: React.ElementType
+  icon: ComponentType<SVGProps<SVGSVGElement>>
   label: string
   value: string
 }) {
