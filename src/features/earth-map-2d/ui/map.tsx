@@ -7,6 +7,7 @@ import { feature } from "topojson-client"
 import worldAtlas from "world-atlas/countries-110m.json"
 import type { SatelliteMap } from "@/entities/satellite/model"
 import type { Topology, GeometryCollection } from "topojson-specification"
+import { cn } from "@/shared/lib/utils"
 
 /** Порог «базового» масштаба для ограничения панорамы. */
 const BASE_ZOOM_EPS = 1e-4
@@ -52,6 +53,54 @@ const WORLD_FEATURES = toFeatureCollection(
     | GeoJSON.Feature
     | GeoJSON.FeatureCollection
 )
+
+type MapTheme = "dark" | "light"
+
+type MapPalette = {
+  oceanGlowStart: string
+  oceanGlowEnd: string
+  sphereFill: string
+  sphereStroke: string
+  graticule: string
+  countryFill: string
+  countryStroke: string
+  track: string
+  satelliteHalo: string
+  satelliteCore: string
+  satelliteStroke: string
+  satelliteLabel: string
+}
+
+const MAP_PALETTES: Record<MapTheme, MapPalette> = {
+  dark: {
+    oceanGlowStart: "#0f274f",
+    oceanGlowEnd: "#020817",
+    sphereFill: "#081226",
+    sphereStroke: "rgba(148,163,184,0.18)",
+    graticule: "rgba(148,163,184,0.12)",
+    countryFill: "#12213d",
+    countryStroke: "rgba(148,163,184,0.18)",
+    track: "rgba(96,165,250,0.85)",
+    satelliteHalo: "rgba(34,197,94,0.14)",
+    satelliteCore: "#10b981",
+    satelliteStroke: "#ffffff",
+    satelliteLabel: "#ffffff",
+  },
+  light: {
+    oceanGlowStart: "#e0f2fe",
+    oceanGlowEnd: "#fef3c7",
+    sphereFill: "#f8fafc",
+    sphereStroke: "rgba(15,23,42,0.2)",
+    graticule: "rgba(15,23,42,0.25)",
+    countryFill: "#e2e8f0",
+    countryStroke: "rgba(15,23,42,0.2)",
+    track: "rgba(14,116,144,0.85)",
+    satelliteHalo: "rgba(14,116,144,0.18)",
+    satelliteCore: "#0f172a",
+    satelliteStroke: "#0f172a",
+    satelliteLabel: "#0f172a",
+  },
+}
 
 function normalizeLng(lng: number) {
   let value = lng
@@ -174,6 +223,7 @@ export function EarthMap2D({
   const mapTransformRef = useRef<ZoomTransform>(zoomIdentity)
 
   const [size, setSize] = useState({ width: 1200, height: 700 })
+  const [mapTheme, setMapTheme] = useState<MapTheme>("dark")
   const renderedSatellites = useRenderedSatellites(satellites)
 
   useEffect(() => {
@@ -194,6 +244,25 @@ export function EarthMap2D({
     return () => observer.disconnect()
   }, [])
 
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    if (typeof MutationObserver === "undefined") return
+
+    const resolveTheme = () =>
+      document.documentElement.classList.contains("dark") ? "dark" : "light"
+
+    const updateTheme = () => setMapTheme(resolveTheme())
+    updateTheme()
+
+    const observer = new MutationObserver(() => updateTheme())
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    })
+
+    return () => observer.disconnect()
+  }, [])
+
   const projection = useMemo(() => {
     return geoEqualEarth().fitExtent(
       [
@@ -206,6 +275,11 @@ export function EarthMap2D({
 
   const path = useMemo(() => geoPath(projection), [projection])
   const graticule = useMemo(() => geoGraticule10(), [])
+  const palette = MAP_PALETTES[mapTheme]
+  const wrapperClassName = cn(
+    className ?? "h-full w-full rounded-2xl",
+    mapTheme === "dark" ? "bg-slate-950" : "bg-slate-50"
+  )
 
   /** При k≈1 панораму ограничиваем ±половина bbox сферы (в пикселях). */
   const baseZoomPanLimit = useMemo(() => {
@@ -274,10 +348,7 @@ export function EarthMap2D({
   }, [size.width, size.height, baseZoomPanLimit.maxTx, baseZoomPanLimit.maxTy])
 
   return (
-    <div
-      ref={wrapperRef}
-      className={className ?? "h-full w-full rounded-2xl bg-slate-950"}
-    >
+    <div ref={wrapperRef} className={wrapperClassName}>
       <svg
         ref={svgRef}
         width={size.width}
@@ -286,8 +357,8 @@ export function EarthMap2D({
       >
         <defs>
           <radialGradient id="oceanGlow" cx="50%" cy="50%" r="80%">
-            <stop offset="0%" stopColor="#0f274f" />
-            <stop offset="100%" stopColor="#020817" />
+            <stop offset="0%" stopColor={palette.oceanGlowStart} />
+            <stop offset="100%" stopColor={palette.oceanGlowEnd} />
           </radialGradient>
         </defs>
 
@@ -302,15 +373,15 @@ export function EarthMap2D({
           />
           <path
             d={path({ type: "Sphere" }) ?? ""}
-            fill="#081226"
-            stroke="rgba(148,163,184,0.18)"
+            fill={palette.sphereFill}
+            stroke={palette.sphereStroke}
             strokeWidth={1}
           />
 
           <path
             d={path(graticule) ?? ""}
             fill="none"
-            stroke="rgba(148,163,184,0.12)"
+            stroke={palette.graticule}
             strokeWidth={0.7}
           />
 
@@ -318,8 +389,8 @@ export function EarthMap2D({
             <path
               key={index}
               d={path(country) ?? ""}
-              fill="#12213d"
-              stroke="rgba(148,163,184,0.18)"
+              fill={palette.countryFill}
+              stroke={palette.countryStroke}
               strokeWidth={0.6}
             />
           ))}
@@ -336,14 +407,14 @@ export function EarthMap2D({
                   } as GeoJSON.LineString)
 
                   return (
-                    <path
-                      key={`${sat.id}-seg-${index}`}
-                      d={lineD ?? ""}
-                      fill="none"
-                      stroke="rgba(96,165,250,0.85)"
-                      strokeWidth={2}
-                      strokeDasharray="6 6"
-                    />
+                      <path
+                        key={`${sat.id}-seg-${index}`}
+                        d={lineD ?? ""}
+                        fill="none"
+                        stroke={palette.track}
+                        strokeWidth={2}
+                        strokeDasharray="6 6"
+                      />
                   )
                 })}
 
@@ -364,20 +435,20 @@ export function EarthMap2D({
                           cx={x}
                           cy={y}
                           r={16}
-                          fill="rgba(34,197,94,0.14)"
+                          fill={palette.satelliteHalo}
                         />
                         <circle
                           cx={x}
                           cy={y}
                           r={7}
-                          fill="#10b981"
-                          stroke="white"
+                          fill={palette.satelliteCore}
+                          stroke={palette.satelliteStroke}
                           strokeWidth={2}
                         />
                         <text
                           x={x + 12}
                           y={y - 12}
-                          fill="white"
+                          fill={palette.satelliteLabel}
                           fontSize="12"
                           fontWeight="600"
                         >

@@ -6,6 +6,7 @@ import { MoonIcon, SunIcon } from "lucide-react"
 import { Separator } from "@/shared/components/ui/separator"
 import { useEffect, useState } from "react"
 
+import { cn } from "@/shared/lib/utils"
 import { Globe, SatelliteIcon, UserIcon } from "lucide-react"
 import { PROJECT_NAME } from "@/shared/config/site"
 
@@ -31,6 +32,16 @@ export const AppHeader = () => {
     localStorage.setItem(THEME_KEY, nextTheme)
     document.documentElement.classList.toggle("dark", nextTheme === "dark")
   }
+
+  const isDarkTheme = theme === "dark"
+  const switchClasses = cn(
+    "size-8 rounded-lg border transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+    isDarkTheme
+      ? "border-slate-600 bg-slate-900/70 text-white hover:bg-slate-900/90 shadow-lg shadow-slate-950/50"
+      : "border-slate-200 bg-white/80 text-slate-900 hover:bg-slate-100 shadow-sm shadow-slate-950/20"
+  )
+  const sunIconClass = cn("size-5", "text-white")
+  const moonIconClass = cn("size-5", "text-black")
 
   return (
     <header className="absolute z-20 h-12 w-full bg-sidebar">
@@ -71,16 +82,20 @@ export const AppHeader = () => {
           </div>
 
           <Swap
+            role="button"
             onClick={toggleTheme}
-            className="size-8 rounded-lg border bg-muted/50 transition-colors hover:bg-muted"
+            aria-label={`Переключить на ${
+              isDarkTheme ? "светлую" : "тёмную"
+            } тему`}
+            className={switchClasses}
           >
-            {theme === "dark" ? (
+            {isDarkTheme ? (
               <SwapOn>
-                <SunIcon className="size-5 text-white" />
+                <SunIcon className={sunIconClass} />
               </SwapOn>
             ) : (
               <SwapOff>
-                <MoonIcon className="size-5 text-black" />
+                <MoonIcon className={moonIconClass} />
               </SwapOff>
             )}
           </Swap>
