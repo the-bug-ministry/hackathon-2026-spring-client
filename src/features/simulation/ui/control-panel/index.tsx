@@ -16,6 +16,7 @@ type SimulationControlPanelProps = {
   onStepBack?: () => void
   onStepForward?: () => void
   onReset?: () => void
+  onSpeedChange?: () => void
 }
 
 export function SimulationControlPanel({
@@ -26,6 +27,7 @@ export function SimulationControlPanel({
   onStepBack,
   onStepForward,
   onReset,
+  onSpeedChange,
 }: SimulationControlPanelProps) {
   return (
     <div className="pointer-events-auto absolute bottom-5 left-1/2 z-30 -translate-x-1/2">
@@ -73,7 +75,11 @@ export function SimulationControlPanel({
         <Separator orientation="vertical" className="h-6" />
 
         {/* SPEED */}
-        <button className="px-2 text-sm font-semibold text-primary transition hover:opacity-80">
+        <button
+          type="button"
+          onClick={onSpeedChange}
+          className="px-2 text-sm font-semibold text-primary transition hover:opacity-80"
+        >
           {speedLabel}
         </button>
 

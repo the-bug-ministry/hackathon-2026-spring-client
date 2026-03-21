@@ -25,6 +25,7 @@ type EarthGlobe3DProps = {
   satellites?: SatelliteMap[]
   trackedSatelliteIds?: string[]
   onSatelliteClick?: (id: string) => void
+  simulationTime?: Date
 }
 
 type SatellitePointProps = {
@@ -211,26 +212,19 @@ function buildCoverageCirclePositions(
   return positions
 }
 
-function useRenderedSatellites(satellites: SatelliteMap[]) {
-  const [now, setNow] = useState(() => new Date())
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNow(new Date())
-    }, 1000)
-
-    return () => window.clearInterval(timer)
-  }, [])
-
+function useRenderedSatellites(
+  satellites: SatelliteMap[],
+  referenceTime: Date
+) {
   return useMemo<RenderedSatellite3D[]>(() => {
     return satellites.map((sat) => ({
       id: sat.id,
       name: sat.name,
       type: sat.type,
-      current: propagateSatellite(sat.tle1, sat.tle2, now),
-      path: buildTrack(sat.tle1, sat.tle2, now),
+      current: propagateSatellite(sat.tle1, sat.tle2, referenceTime),
+      path: buildTrack(sat.tle1, sat.tle2, referenceTime),
     }))
-  }, [satellites, now])
+  }, [satellites, referenceTime])
 }
 
 function buildBorderPositions(
@@ -467,13 +461,18 @@ function RenderedSatelliteMarker({
 function SatelliteVisualizationLayer({
   satellites = [],
   trackedSatelliteIds = [],
+  simulationTime,
   onSatelliteClick,
 }: {
   satellites?: SatelliteMap[]
   trackedSatelliteIds?: string[]
+  simulationTime?: Date
   onSatelliteClick?: (id: string) => void
 }) {
-  const rendered = useRenderedSatellites(satellites)
+  const rendered = useRenderedSatellites(
+    satellites,
+    simulationTime ?? new Date()
+  )
   const trackedSet = useMemo(
     () => new Set(trackedSatelliteIds ?? []),
     [trackedSatelliteIds]
@@ -502,6 +501,7 @@ export function EarthGlobe3D({
   satellites = [],
   trackedSatelliteIds = [],
   onSatelliteClick,
+  simulationTime,
 }: EarthGlobe3DProps) {
   const [theme, setTheme] = useState<GlobeTheme>("dark")
 
@@ -609,6 +609,7 @@ export function EarthGlobe3D({
         <SatelliteVisualizationLayer
           satellites={satellites}
           trackedSatelliteIds={trackedSatelliteIds}
+          simulationTime={simulationTime}
           onSatelliteClick={onSatelliteClick}
         />
 

@@ -14,6 +14,7 @@ const BASE_ZOOM_EPS = 1e-4
 
 type EarthMap2DProps = {
   satellites: SatelliteMap[]
+  simulationTime?: Date
   trackedSatelliteIds?: string[]
   className?: string
   onSatelliteClick?: (id: string) => void
@@ -234,30 +235,21 @@ function resolveCountryRegion(feature: GeoJSON.Feature) {
   )
 }
 
-function useRenderedSatellites(satellites: SatelliteMap[]) {
-  const [now, setNow] = useState(() => new Date())
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNow(new Date())
-    }, 1000)
-
-    return () => window.clearInterval(timer)
-  }, [])
-
+function useRenderedSatellites(satellites: SatelliteMap[], referenceTime: Date) {
   return useMemo<RenderedSatellite[]>(() => {
     return satellites.map((sat) => ({
       id: sat.id,
       name: sat.name,
       type: sat.type,
-      current: propagateSatellite(sat.tle1, sat.tle2, now),
-      path: buildTrack(sat.tle1, sat.tle2, now),
+      current: propagateSatellite(sat.tle1, sat.tle2, referenceTime),
+      path: buildTrack(sat.tle1, sat.tle2, referenceTime),
     }))
-  }, [satellites, now])
+  }, [satellites, referenceTime])
 }
 
 export function EarthMap2D({
   satellites,
+  simulationTime,
   trackedSatelliteIds,
   className,
   onSatelliteClick,
@@ -275,7 +267,8 @@ export function EarthMap2D({
     x: number
     y: number
   } | null>(null)
-  const renderedSatellites = useRenderedSatellites(satellites)
+  const now = simulationTime ?? new Date()
+  const renderedSatellites = useRenderedSatellites(satellites, now)
   const trackedIds = useMemo(
     () => new Set(trackedSatelliteIds ?? []),
     [trackedSatelliteIds]
