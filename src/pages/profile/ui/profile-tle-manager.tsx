@@ -1,4 +1,4 @@
-import { type ChangeEvent, useCallback, useRef, useState } from "react"
+import { useRef } from "react"
 import { Button } from "@/shared/components/ui/button"
 import {
   Card,
@@ -10,10 +10,13 @@ import {
 import { Separator } from "@/shared/components/ui/separator"
 import { Badge } from "@/shared/components/ui/badge"
 import { cn } from "@/shared/lib/utils"
-import { Trash2Icon, UploadCloudIcon } from "lucide-react"
+import { isTxtFile } from "@/shared/lib/is-txt-file"
+import { Trash2Icon, UploadIcon } from "lucide-react"
+import { toast } from "sonner"
 
 import { useTleDumps } from "@/entities/satellite/lib/use-tle-dumps"
 import type { TleDump } from "@/entities/satellite/lib/use-tle-dumps"
+import { useTleUpload } from "@/entities/satellite/lib"
 
 const formatDateTime = (value: string) => {
   const date = new Date(value)
@@ -40,43 +43,30 @@ const formatBytes = (bytes: number) => {
   return `${(kilobytes / 1024).toFixed(2)} МБ`
 }
 
-const buildPreview = (content: string) => {
-  const cleanLines = content
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-
-  if (!cleanLines.length) {
-    return "Пустой файл"
-  }
-
-  return cleanLines.slice(0, 3).join(" · ")
-}
-
 export function ProfileTleManager({ className }: { className?: string }) {
-  const { dumps, activeDump, addDumps, setActive, removeDump } = useTleDumps()
-  const inputRef = useRef<HTMLInputElement | null>(null)
-  const [isUploading, setIsUploading] = useState(false)
+  const { dumps, activeDump, setActive, removeDump } = useTleDumps()
+  const { mutate: uploadToServer, isPending: isServerUploading } =
+    useTleUpload()
+  const serverInputRef = useRef<HTMLInputElement | null>(null)
 
-  const handleUploadClick = () => {
-    inputRef.current?.click()
-  }
-
-  const handleFilesChange = useCallback(
-    async (event: ChangeEvent<HTMLInputElement>) => {
-      const files = event.currentTarget.files
-      if (!files?.length) return
-
-      setIsUploading(true)
-      try {
-        await addDumps(files)
-      } finally {
-        setIsUploading(false)
-        event.currentTarget.value = ""
+  const handleServerFile = (file: File | undefined) => {
+    if (!file) return
+    if (!isTxtFile(file)) {
+      toast.error("Можно загрузить только файл в формате .txt")
+      return
+    }
+    uploadToServer(
+      { file },
+      {
+        onSuccess: () => {
+          toast.success("Файл TLE успешно загружен на сервер")
+        },
+        onError: () => {
+          toast.error("Не удалось загрузить файл на сервер")
+        },
       }
-    },
-    [addDumps]
-  )
+    )
+  }
 
   const renderItem = (dump: TleDump) => {
     const isActive = dump.isActive
@@ -109,8 +99,7 @@ export function ProfileTleManager({ className }: { className?: string }) {
                 {dump.name}
               </p>
               <p className="text-xs text-muted-foreground">
-                {formatDateTime(dump.createdAt)} · {dump.entries} TLE ·{" "}
-                {formatBytes(dump.size)}
+                {formatDateTime(dump.createdAt)} · {formatBytes(dump.size)}
               </p>
             </div>
             {isActive && (
@@ -119,9 +108,6 @@ export function ProfileTleManager({ className }: { className?: string }) {
               </Badge>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
-            {buildPreview(dump.content)}
-          </p>
         </div>
 
         <button
@@ -156,20 +142,38 @@ export function ProfileTleManager({ className }: { className?: string }) {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={handleUploadClick}
-            disabled={isUploading}
-          >
-            <UploadCloudIcon className="size-4" />
-            {isUploading ? "Загрузка" : "Добавить дамп"}
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            Поддерживаются .tle, .txt и .dat файлы. Можно загружать несколько
-            файлов сразу.
-          </p>
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm font-medium text-foreground">
+              Загрузка на сервер
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Отправка TLE для отслеживания спутников в системе. Только .txt.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              ref={serverInputRef}
+              type="file"
+              className="hidden"
+              accept=".txt,text/plain"
+              disabled={isServerUploading}
+              onChange={(e) => {
+                handleServerFile(e.target.files?.[0])
+                e.target.value = ""
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              disabled={isServerUploading}
+              onClick={() => serverInputRef.current?.click()}
+            >
+              <UploadIcon className="size-4" />
+              {isServerUploading ? "Загрузка…" : "Выбрать файл (.txt)"}
+            </Button>
+          </div>
         </div>
 
         <Separator />
@@ -177,6 +181,7 @@ export function ProfileTleManager({ className }: { className?: string }) {
         {dumps.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Пока нет загруженных дампов. Загрузи первый файл, чтобы начать.
+            (!!!вывести с бэка)
           </p>
         ) : (
           <div className="space-y-3">
@@ -184,15 +189,6 @@ export function ProfileTleManager({ className }: { className?: string }) {
           </div>
         )}
       </CardContent>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".tle,.txt,.dat"
-        multiple
-        className="hidden"
-        onChange={handleFilesChange}
-      />
     </Card>
   )
 }

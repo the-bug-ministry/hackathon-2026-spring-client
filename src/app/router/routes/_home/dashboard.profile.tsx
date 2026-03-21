@@ -8,6 +8,7 @@ export const Route = createFileRoute("/_home/dashboard/profile")({
     if (auth.status !== "AUTHENTICATED") {
       throw redirect({
         to: "/login",
+        search: { redirect: "/dashboard/profile" },
       })
     }
   },

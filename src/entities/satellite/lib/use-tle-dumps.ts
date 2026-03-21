@@ -151,9 +151,9 @@ export const useTleDumps = () => {
     [dumps]
   )
 
-  const addDumps = useCallback(async (files: FileList) => {
+  const addDumps = useCallback(async (files: File[]) => {
     const items = await Promise.all(
-      Array.from(files).map(async (file) => {
+      files.map(async (file) => {
         const content = await readFileAsText(file)
         return {
           id: createId(),
