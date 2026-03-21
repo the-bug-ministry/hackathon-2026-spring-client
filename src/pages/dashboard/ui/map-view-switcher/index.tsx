@@ -12,7 +12,7 @@ export function MapViewSwitcher({
   onValueChange,
 }: MapViewSwitcherProps) {
   return (
-    <div className="absolute top-10 left-6 z-30">
+    <div className="absolute top-5 left-6 z-30">
       <Tabs
         value={value}
         onValueChange={(next) => onValueChange(next as MapViewMode)}

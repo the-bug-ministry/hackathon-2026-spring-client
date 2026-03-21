@@ -121,7 +121,7 @@ export function ProfilePage() {
                         />
                       </div>
 
-                      <Button className="w-full" disabled={isDisabled}>
+                      <Button className="w-fit" disabled={isDisabled}>
                         Сохранить
                       </Button>
                     </CardContent>
@@ -147,7 +147,7 @@ export function ProfilePage() {
 
                       <Button
                         variant="outline"
-                        className="w-full"
+                        className="w-fit"
                         disabled={isDisabled}
                       >
                         Изменить email
