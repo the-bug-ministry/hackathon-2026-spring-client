@@ -1,7 +1,6 @@
 import {
   Sidebar,
   SidebarGroup,
-  SidebarGroupLabel,
 } from "@/shared/components/ui/sidebar"
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs"
 import { ApparatSearch } from "./components/search"
