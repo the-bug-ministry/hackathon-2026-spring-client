@@ -1,0 +1,55 @@
+/* Десктоп - кастомные скроллбары */
+@media (hover: hover) or (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(209 213 219 / 0.8);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(156 163 175 / 0.9);
+}
+
+/* Убираем стрелки и уголок */
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-corner {
+  display: none !important;
+  width: 0;
+  height: 0;
+}
+
+/* Мобильные устройства - скрываем скроллбары полностью */
+@media (hover: none) and (pointer: coarse) {
+  ::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
+
+  /* Для Firefox на мобильных */
+  * {
+    scrollbar-width: none !important;
+  }
+
+  /* Для IE/Edge старых версий */
+  * {
+    -ms-overflow-style: none !important;
+  }
+}
+
+/* Safari's ban on zooming on form elements */
+input,
+textarea,
+select {
+  font-size: 16px;
+}

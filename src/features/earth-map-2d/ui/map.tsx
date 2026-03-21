@@ -1,4 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from "react"
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react"
 import * as satellite from "satellite.js"
 import { select } from "d3-selection"
 import { zoom, zoomIdentity, ZoomTransform } from "d3-zoom"
@@ -384,10 +391,7 @@ export function EarthMap2D({
           )}px`,
           top: `${Math.max(
             8,
-            Math.min(
-              tooltipPosition.y + 12,
-              Math.max(size.height - 100, 40)
-            )
+            Math.min(tooltipPosition.y + 12, Math.max(size.height - 100, 40))
           )}px`,
         }
       : undefined
@@ -514,7 +518,7 @@ export function EarthMap2D({
             )
           })}
 
-        {renderedSatellites.map((sat) => {
+          {renderedSatellites.map((sat) => {
             const segments = splitTrackOnDateline(sat.path)
 
             return (
@@ -526,14 +530,14 @@ export function EarthMap2D({
                   } as GeoJSON.LineString)
 
                   return (
-                      <path
-                        key={`${sat.id}-seg-${index}`}
-                        d={lineD ?? ""}
-                        fill="none"
-                        stroke={palette.track}
-                        strokeWidth={2}
-                        strokeDasharray="6 6"
-                      />
+                    <path
+                      key={`${sat.id}-seg-${index}`}
+                      d={lineD ?? ""}
+                      fill="none"
+                      stroke={palette.track}
+                      strokeWidth={2}
+                      strokeDasharray="6 6"
+                    />
                   )
                 })}
 

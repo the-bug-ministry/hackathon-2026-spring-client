@@ -267,9 +267,9 @@ export function ListPage() {
         </p>
       </div>
 
-      <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40">
-        <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-6">
-          <DataTable table={table} className="flex-1 min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
+          <DataTable table={table} className="min-h-0 flex-1">
             <DataTableToolbar table={table} />
           </DataTable>
         </div>

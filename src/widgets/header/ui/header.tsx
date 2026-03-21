@@ -37,8 +37,8 @@ export const AppHeader = () => {
   const switchClasses = cn(
     "size-8 rounded-lg border transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
     isDarkTheme
-      ? "border-slate-600 bg-slate-900/70 text-white hover:bg-slate-900/90 shadow-lg shadow-slate-950/50"
-      : "border-slate-200 bg-white/80 text-slate-900 hover:bg-slate-100 shadow-sm shadow-slate-950/20"
+      ? "border-slate-600 bg-slate-900/70 text-white shadow-lg shadow-slate-950/50 hover:bg-slate-900/90"
+      : "border-slate-200 bg-white/80 text-slate-900 shadow-sm shadow-slate-950/20 hover:bg-slate-100"
   )
   const sunIconClass = cn("size-5", "text-white")
   const moonIconClass = cn("size-5", "text-black")

@@ -28,8 +28,8 @@ export function ProfilePage() {
         </p>
       </div>
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div className="flex-1 min-h-0 overflow-auto">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-auto">
           <div className="mx-auto flex min-h-0 w-full max-w-5xl flex-col gap-6">
             {/* PROFILE CARD */}
             <Card className="rounded-2xl">
@@ -91,7 +91,10 @@ export function ProfilePage() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label>Email</Label>
-                    <Input type="email" defaultValue="nickitadatsky@gmail.com" />
+                    <Input
+                      type="email"
+                      defaultValue="nickitadatsky@gmail.com"
+                    />
                   </div>
 
                   <Button variant="outline" className="w-full">
@@ -107,7 +110,9 @@ export function ProfilePage() {
                     <ShieldIcon className="size-4" />
                     Безопасность
                   </CardTitle>
-                  <CardDescription>Настройки безопасности аккаунта</CardDescription>
+                  <CardDescription>
+                    Настройки безопасности аккаунта
+                  </CardDescription>
                 </CardHeader>
 
                 <CardContent className="space-y-4">
