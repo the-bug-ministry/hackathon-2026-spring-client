@@ -8,7 +8,13 @@ import {
 } from "react"
 import { select } from "d3-selection"
 import { zoom, zoomIdentity, ZoomTransform } from "d3-zoom"
-import { geoPath, geoGraticule10, geoEqualEarth, geoCentroid } from "d3-geo"
+import {
+  geoPath,
+  geoGraticule10,
+  geoEqualEarth,
+  geoCentroid,
+  geoContains,
+} from "d3-geo"
 import { feature } from "topojson-client"
 import worldAtlas from "world-atlas/countries-110m.json"
 import type { SatelliteMap } from "@/entities/satellite/model"
@@ -115,8 +121,29 @@ type HoveredCountry = {
   center: [number, number] | null
 }
 
+type CountryPassItem = {
+  id: string
+  name: string
+  type: string
+  /** Смещение в минутах относительно now: <0 — прошло, >0 — впереди. */
+  offsetMinutes?: number
+}
+
+type CountryPasses = {
+  current: CountryPassItem[]
+  recent: CountryPassItem[]
+  upcoming: CountryPassItem[]
+}
+
 const MIN_LABEL_OPACITY = 0.35
 const MAX_LABEL_OPACITY = 1
+const RECENT_WINDOW_MIN = 20
+const UPCOMING_WINDOW_MIN = 20
+const PASS_SAMPLE_STEP_SEC = 60
+const COUNTRY_DISPLAY_NAMES_RU =
+  typeof Intl !== "undefined" && typeof Intl.DisplayNames !== "undefined"
+    ? new Intl.DisplayNames(["ru"], { type: "region" })
+    : { of: () => undefined }
 
 function getLabelOpacity(scale: number) {
   const normalized = Math.min(1, Math.max(0, (scale - 1) / 3))
@@ -175,6 +202,23 @@ function splitTrackOnDateline(points: Array<[number, number]>) {
 
 function resolveCountryName(feature: GeoJSON.Feature) {
   const props = (feature.properties ?? {}) as Record<string, unknown>
+  const ruName =
+    (props.NAME_RU as string) ??
+    (props.name_ru as string) ??
+    (props.NAME_RUS as string)
+
+  if (ruName) return ruName
+
+  const iso2 = resolveCountryIso2(feature)?.toUpperCase()
+  if (iso2) {
+    try {
+      const displayName = COUNTRY_DISPLAY_NAMES_RU.of(iso2)
+      if (displayName) return displayName
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
   return (
     (props.ADMIN as string) ??
     (props.NAME as string) ??
@@ -197,6 +241,17 @@ function resolveCountryIso(feature: GeoJSON.Feature) {
   )
 }
 
+function resolveCountryIso2(feature: GeoJSON.Feature) {
+  const props = (feature.properties ?? {}) as Record<string, unknown>
+  return (
+    (props.ISO_A2 as string) ??
+    (props.iso_a2 as string) ??
+    (props.ISO2 as string) ??
+    (props.iso2 as string) ??
+    null
+  )
+}
+
 function resolveCountryRegion(feature: GeoJSON.Feature) {
   const props = (feature.properties ?? {}) as Record<string, unknown>
   return (
@@ -205,6 +260,96 @@ function resolveCountryRegion(feature: GeoJSON.Feature) {
     (props.region as string) ??
     null
   )
+}
+
+function isOverCountry(feature: GeoJSON.Feature, pos: SatPosition | null) {
+  if (!pos) return false
+  return geoContains(feature, [pos.lng, pos.lat])
+}
+
+function findPassOffsetMinutes(
+  feature: GeoJSON.Feature,
+  satellite: SatelliteMap,
+  referenceTime: Date,
+  direction: "past" | "future"
+) {
+  const step = PASS_SAMPLE_STEP_SEC * 1000
+  const limitMs =
+    (direction === "past" ? -RECENT_WINDOW_MIN : UPCOMING_WINDOW_MIN) * 60 * 1000
+  const start = direction === "past" ? -step : step
+  const condition =
+    direction === "past"
+      ? (offset: number) => offset >= limitMs
+      : (offset: number) => offset <= limitMs
+
+  for (let offset = start; condition(offset); offset += direction === "past" ? -step : step) {
+    const date = new Date(referenceTime.getTime() + offset)
+    const pos = propagateSatellitePosition(satellite, date)
+    if (isOverCountry(feature, pos)) {
+      return Math.round(offset / 60000)
+    }
+  }
+
+  return null
+}
+
+function classifyCountryPasses(
+  feature: GeoJSON.Feature,
+  satellites: SatelliteMap[],
+  referenceTime: Date
+): CountryPasses {
+  const result: CountryPasses = {
+    current: [],
+    recent: [],
+    upcoming: [],
+  }
+
+  for (const sat of satellites) {
+    const currentPos = propagateSatellitePosition(sat, referenceTime)
+
+    if (isOverCountry(feature, currentPos)) {
+      result.current.push({
+        id: sat.id,
+        name: sat.name,
+        type: sat.type,
+        offsetMinutes: 0,
+      })
+      continue
+    }
+
+    const recentOffset = findPassOffsetMinutes(
+      feature,
+      sat,
+      referenceTime,
+      "past"
+    )
+    if (recentOffset !== null) {
+      result.recent.push({
+        id: sat.id,
+        name: sat.name,
+        type: sat.type,
+        offsetMinutes: recentOffset,
+      })
+      continue
+    }
+
+    const upcomingOffset = findPassOffsetMinutes(
+      feature,
+      sat,
+      referenceTime,
+      "future"
+    )
+    if (upcomingOffset !== null) {
+      result.upcoming.push({
+        id: sat.id,
+        name: sat.name,
+        type: sat.type,
+        offsetMinutes: upcomingOffset,
+      })
+    }
+  }
+
+  return result
 }
 
 function useRenderedSatellites(
@@ -252,6 +397,10 @@ export function EarthMap2D({
     () => new Set(trackedSatelliteIds ?? []),
     [trackedSatelliteIds]
   )
+  const hoveredCountryPasses = useMemo(() => {
+    if (!hoveredCountry) return null
+    return classifyCountryPasses(hoveredCountry.feature, satellites, now)
+  }, [hoveredCountry, satellites, now])
 
   useEffect(() => {
     if (!wrapperRef.current) return
@@ -349,7 +498,7 @@ export function EarthMap2D({
     mapTheme === "dark" ? "rgba(59,130,246,0.25)" : "rgba(14,116,144,0.25)"
   const highlightStroke =
     mapTheme === "dark" ? "rgba(59,130,246,0.85)" : "rgba(14,116,144,0.85)"
-  const tooltipWidth = 220
+  const tooltipWidth = 420
   const tooltipStyle =
     tooltipPosition && hoveredCountry
       ? {
@@ -579,7 +728,7 @@ export function EarthMap2D({
       {hoveredCountry && tooltipStyle && (
         <div
           style={tooltipStyle}
-          className="pointer-events-none absolute z-50 w-[220px] rounded-2xl border border-white/20 bg-slate-950/90 px-4 py-3 text-xs text-white shadow-2xl shadow-black/60 backdrop-blur"
+          className="pointer-events-none absolute z-50 w-[420px] rounded-2xl border border-white/20 bg-slate-950/90 px-4 py-3 text-xs text-white shadow-2xl shadow-black/60 backdrop-blur"
         >
           <div className="text-sm font-semibold text-white">
             {hoveredCountry.name}
@@ -592,6 +741,60 @@ export function EarthMap2D({
             <div className="mt-1 text-[11px] text-white/70">
               Центр: {hoveredCountry.center[1].toFixed(2)}° N,{" "}
               {hoveredCountry.center[0].toFixed(2)}° E
+            </div>
+          )}
+          {hoveredCountryPasses && (
+            <div className="mt-2 grid grid-cols-3 gap-1">
+              {[
+                {
+                  title: "Сейчас",
+                  items: hoveredCountryPasses.current,
+                  accent: "bg-emerald-400/20 text-emerald-100 border-emerald-300/40",
+                },
+                {
+                  title: `Недавно (≤${RECENT_WINDOW_MIN} мин)`,
+                  items: hoveredCountryPasses.recent.slice(0, 5),
+                  accent: "bg-sky-400/15 text-sky-50 border-sky-300/40",
+                },
+                {
+                  title: `Скоро (≤${UPCOMING_WINDOW_MIN} мин)`,
+                  items: hoveredCountryPasses.upcoming.slice(0, 5),
+                  accent: "bg-amber-400/15 text-amber-100 border-amber-300/40",
+                },
+              ].map((section) => (
+                <div key={section.title} className="flex flex-col gap-0.5 rounded-xl border border-white/10 bg-white/5 p-1">
+                  <div className="flex items-center justify-between text-[9px] text-white/70">
+                    <span>{section.title}</span>
+                    <span>{section.items.length}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-0.5">
+                    {section.items.length ? (
+                      section.items.map((item) => (
+                        <span
+                          key={item.id}
+                          className={cn(
+                            "rounded-full border px-1 py-[2px] text-[9px] leading-none",
+                            section.accent
+                          )}
+                        >
+                          {item.name}
+                          {typeof item.offsetMinutes === "number" &&
+                            item.offsetMinutes !== 0 && (
+                              <span className="text-white/60">
+                                {" "}
+                                {item.offsetMinutes > 0
+                                  ? `${item.offsetMinutes} м.`
+                                  : `${Math.abs(item.offsetMinutes)} м.`}
+                              </span>
+                            )}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-white/50">Нет</span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
