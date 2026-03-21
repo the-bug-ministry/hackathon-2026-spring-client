@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from "react"
 import * as satellite from "satellite.js"
 import { select } from "d3-selection"
 import { zoom, zoomIdentity, ZoomTransform } from "d3-zoom"
-import { geoPath, geoGraticule10, geoEqualEarth } from "d3-geo"
+import { geoPath, geoGraticule10, geoEqualEarth, geoCentroid } from "d3-geo"
 import { feature } from "topojson-client"
 import worldAtlas from "world-atlas/countries-110m.json"
 import type { SatelliteMap } from "@/entities/satellite/model"
@@ -102,6 +102,14 @@ const MAP_PALETTES: Record<MapTheme, MapPalette> = {
   },
 }
 
+type HoveredCountry = {
+  feature: GeoJSON.Feature
+  name: string
+  iso: string | null
+  region: string | null
+  center: [number, number] | null
+}
+
 function normalizeLng(lng: number) {
   let value = lng
   while (value > 180) value -= 360
@@ -191,6 +199,40 @@ function splitTrackOnDateline(points: Array<[number, number]>) {
   return segments
 }
 
+function resolveCountryName(feature: GeoJSON.Feature) {
+  const props = (feature.properties ?? {}) as Record<string, unknown>
+  return (
+    (props.ADMIN as string) ??
+    (props.NAME as string) ??
+    (props.name as string) ??
+    (props.NAME_LONG as string) ??
+    (props.formal_en as string) ??
+    "Страна"
+  )
+}
+
+function resolveCountryIso(feature: GeoJSON.Feature) {
+  const props = (feature.properties ?? {}) as Record<string, unknown>
+  return (
+    (props.ISO_A3 as string) ??
+    (props.iso_a3 as string) ??
+    (props.ISO3 as string) ??
+    (props.iso3 as string) ??
+    (props.iso as string) ??
+    null
+  )
+}
+
+function resolveCountryRegion(feature: GeoJSON.Feature) {
+  const props = (feature.properties ?? {}) as Record<string, unknown>
+  return (
+    (props.CONTINENT as string) ??
+    (props.REGION_UN as string) ??
+    (props.region as string) ??
+    null
+  )
+}
+
 function useRenderedSatellites(satellites: SatelliteMap[]) {
   const [now, setNow] = useState(() => new Date())
 
@@ -224,6 +266,13 @@ export function EarthMap2D({
 
   const [size, setSize] = useState({ width: 1200, height: 700 })
   const [mapTheme, setMapTheme] = useState<MapTheme>("dark")
+  const [hoveredCountry, setHoveredCountry] = useState<HoveredCountry | null>(
+    null
+  )
+  const [tooltipPosition, setTooltipPosition] = useState<{
+    x: number
+    y: number
+  } | null>(null)
   const renderedSatellites = useRenderedSatellites(satellites)
 
   useEffect(() => {
@@ -263,6 +312,43 @@ export function EarthMap2D({
     return () => observer.disconnect()
   }, [])
 
+  const alignTooltip = (event: MouseEvent<SVGPathElement>) => {
+    const svgRect = svgRef.current?.getBoundingClientRect()
+    if (!svgRect) {
+      setTooltipPosition(null)
+      return
+    }
+
+    setTooltipPosition({
+      x: event.clientX - svgRect.left,
+      y: event.clientY - svgRect.top,
+    })
+  }
+
+  const handleCountryHover = (
+    feature: GeoJSON.Feature,
+    event: MouseEvent<SVGPathElement>
+  ) => {
+    alignTooltip(event)
+    setHoveredCountry({
+      feature,
+      name: resolveCountryName(feature),
+      iso: resolveCountryIso(feature),
+      region: resolveCountryRegion(feature),
+      center: geoCentroid(feature),
+    })
+  }
+
+  const handleCountryMove = (event: MouseEvent<SVGPathElement>) => {
+    if (!hoveredCountry) return
+    alignTooltip(event)
+  }
+
+  const handleCountryLeave = () => {
+    setHoveredCountry(null)
+    setTooltipPosition(null)
+  }
+
   const projection = useMemo(() => {
     return geoEqualEarth().fitExtent(
       [
@@ -278,8 +364,33 @@ export function EarthMap2D({
   const palette = MAP_PALETTES[mapTheme]
   const wrapperClassName = cn(
     className ?? "h-full w-full rounded-2xl",
-    mapTheme === "dark" ? "bg-slate-950" : "bg-slate-50"
+    mapTheme === "dark" ? "bg-slate-950" : "bg-slate-50",
+    "relative"
   )
+  const highlightFill =
+    mapTheme === "dark" ? "rgba(59,130,246,0.25)" : "rgba(14,116,144,0.25)"
+  const highlightStroke =
+    mapTheme === "dark" ? "rgba(59,130,246,0.85)" : "rgba(14,116,144,0.85)"
+  const tooltipWidth = 220
+  const tooltipStyle =
+    tooltipPosition && hoveredCountry
+      ? {
+          left: `${Math.max(
+            8,
+            Math.min(
+              tooltipPosition.x + 12,
+              Math.max(size.width - tooltipWidth - 12, 16)
+            )
+          )}px`,
+          top: `${Math.max(
+            8,
+            Math.min(
+              tooltipPosition.y + 12,
+              Math.max(size.height - 100, 40)
+            )
+          )}px`,
+        }
+      : undefined
 
   /** При k≈1 панораму ограничиваем ±половина bbox сферы (в пикселях). */
   const baseZoomPanLimit = useMemo(() => {
@@ -385,17 +496,25 @@ export function EarthMap2D({
             strokeWidth={0.7}
           />
 
-          {WORLD_FEATURES.features.map((country, index) => (
-            <path
-              key={index}
-              d={path(country) ?? ""}
-              fill={palette.countryFill}
-              stroke={palette.countryStroke}
-              strokeWidth={0.6}
-            />
-          ))}
+          {WORLD_FEATURES.features.map((country, index) => {
+            const isHovered = hoveredCountry?.feature === country
 
-          {renderedSatellites.map((sat) => {
+            return (
+              <path
+                key={index}
+                d={path(country) ?? ""}
+                fill={isHovered ? highlightFill : palette.countryFill}
+                stroke={isHovered ? highlightStroke : palette.countryStroke}
+                strokeWidth={isHovered ? 1.1 : 0.6}
+                className="cursor-pointer transition-colors duration-200"
+                onMouseEnter={(event) => handleCountryHover(country, event)}
+                onMouseMove={handleCountryMove}
+                onMouseLeave={handleCountryLeave}
+              />
+            )
+          })}
+
+        {renderedSatellites.map((sat) => {
             const segments = splitTrackOnDateline(sat.path)
 
             return (
@@ -462,6 +581,27 @@ export function EarthMap2D({
           })}
         </g>
       </svg>
+
+      {hoveredCountry && tooltipStyle && (
+        <div
+          style={tooltipStyle}
+          className="pointer-events-none absolute z-50 w-[220px] rounded-2xl border border-white/20 bg-slate-950/90 px-4 py-3 text-xs text-white shadow-2xl shadow-black/60 backdrop-blur"
+        >
+          <div className="text-sm font-semibold text-white">
+            {hoveredCountry.name}
+          </div>
+          <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-white/70">
+            <span>ISO: {hoveredCountry.iso ?? "—"}</span>
+            <span>Регион: {hoveredCountry.region ?? "—"}</span>
+          </div>
+          {hoveredCountry.center && (
+            <div className="mt-1 text-[11px] text-white/70">
+              Центр: {hoveredCountry.center[1].toFixed(2)}° N,{" "}
+              {hoveredCountry.center[0].toFixed(2)}° E
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
