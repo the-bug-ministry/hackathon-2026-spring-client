@@ -46,13 +46,8 @@ export function TleFileUpload() {
             <code className="rounded bg-slate-100 px-1 dark:bg-slate-800">
               file
             </code>
-            ).
+            )
           </p>
-          {fileName && (
-            <p className="text-xs text-muted-foreground">
-              Последний файл: <span className="font-medium">{fileName}</span>
-            </p>
-          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

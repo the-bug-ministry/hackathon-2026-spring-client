@@ -22,7 +22,7 @@ import {
   TabsTrigger,
 } from "@/shared/components/ui/tabs"
 
-import { useProfileQuery } from "@/entities/account/lib/use-profile"
+import { useAuth } from "@/entities/auth/lib/use-auth"
 import {
   mapAccountToProfileFields,
   buildDisplayName,
@@ -31,11 +31,13 @@ import {
 import { ProfileTleManager } from "./ui/profile-tle-manager"
 
 export function ProfilePage() {
-  const { data, isError, isLoading } = useProfileQuery()
-  const fields = mapAccountToProfileFields(data)
+  const { account, status, meError } = useAuth()
+  const isLoading = status === "PENDING"
+  const isError = Boolean(meError) && status !== "PENDING"
+  const fields = mapAccountToProfileFields(account ?? undefined)
   const displayName = buildDisplayName(fields)
   const initials = buildInitials(fields)
-  const isDisabled = isLoading || !data
+  const isDisabled = isLoading || !account
 
   return (
     <div className="flex h-full w-full flex-col gap-6 p-6 md:p-10">
