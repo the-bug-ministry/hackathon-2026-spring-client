@@ -257,8 +257,8 @@ export function ListPage() {
   })
 
   return (
-    <div className="h-full w-full overflow-auto p-6 md:p-10">
-      <div className="sticky top-0 mb-6 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40">
+    <div className="flex h-full w-full flex-col gap-6 p-6 md:p-10">
+      <div className="sticky top-0 z-10 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40">
         <h1 className="mb-2 text-2xl font-bold text-slate-900 dark:text-white">
           База данных спутников
         </h1>
@@ -267,10 +267,12 @@ export function ListPage() {
         </p>
       </div>
 
-      <div className="data-table-container">
-        <DataTable table={table}>
-          <DataTableToolbar table={table} />
-        </DataTable>
+      <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40">
+        <div className="flex flex-1 min-h-0 flex-col overflow-hidden p-6">
+          <DataTable table={table} className="flex-1 min-h-0">
+            <DataTableToolbar table={table} />
+          </DataTable>
+        </div>
       </div>
     </div>
   )
