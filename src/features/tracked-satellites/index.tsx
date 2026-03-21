@@ -60,8 +60,7 @@ export const TrackedSatellites = ({
           <div className="space-y-3 p-4">
             {selectedSatellites.map((satellite) => {
               const position = selectedPositions.get(satellite.id)
-              const altitude =
-                position?.altitudeKm ?? satellite.altitudeKm
+              const altitude = position?.altitudeKm ?? satellite.altitudeKm
               const speed = position?.speedKms ?? satellite.speedKms
               const periodMin = calculateOrbitalPeriodMin(altitude)
 

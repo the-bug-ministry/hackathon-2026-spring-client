@@ -13,13 +13,18 @@ import type { Topology, GeometryCollection } from "topojson-specification"
 import { propagateSatellitePosition } from "@/entities/satellite/lib/propagation"
 import type { OrbitalPosition } from "@/entities/satellite/lib/propagation"
 
-const atlas = worldAtlas as unknown as Topology<{ countries: GeometryCollection }>
-const COUNTRY_FEATURES = feature(atlas, atlas.objects.countries) as GeoJSON.FeatureCollection
+const atlas = worldAtlas as unknown as Topology<{
+  countries: GeometryCollection
+}>
+const COUNTRY_FEATURES = feature(
+  atlas,
+  atlas.objects.countries
+) as GeoJSON.FeatureCollection
 const BORDER_MESH = mesh(
   atlas,
   atlas.objects.countries,
   (a, b) => a !== b
- ) as unknown as GeoJSON.Feature<GeoJSON.MultiLineString>
+) as unknown as GeoJSON.Feature<GeoJSON.MultiLineString>
 
 type EarthGlobe3DProps = {
   className?: string
@@ -248,7 +253,8 @@ function createMapTexture(theme: GlobeTheme) {
 
   const oceanColor = theme === "dark" ? "#020617" : "#dfe8f7"
   const landColor = theme === "dark" ? "#09132b" : "#b8c7f3"
-  const borderColor = theme === "dark" ? "rgba(255,255,255,0.25)" : "rgba(15,23,42,0.5)"
+  const borderColor =
+    theme === "dark" ? "rgba(255,255,255,0.25)" : "rgba(15,23,42,0.5)"
 
   context.fillStyle = oceanColor
   context.fillRect(0, 0, width, height)
@@ -271,7 +277,8 @@ function createMapTexture(theme: GlobeTheme) {
 
   context.beginPath()
   path({ type: "Sphere" } as unknown as GeoJSON.Feature)
-  context.strokeStyle = theme === "dark" ? "rgba(255,255,255,0.35)" : "rgba(15,23,42,0.5)"
+  context.strokeStyle =
+    theme === "dark" ? "rgba(255,255,255,0.35)" : "rgba(15,23,42,0.5)"
   context.lineWidth = 2
   context.stroke()
 
@@ -320,7 +327,11 @@ function SatellitePoint({
   )
 }
 
-function MockSatelliteLayer({ satellites = [] }: { satellites?: SatelliteMap[] }) {
+function MockSatelliteLayer({
+  satellites = [],
+}: {
+  satellites?: SatelliteMap[]
+}) {
   const fallback = [
     { id: "1", name: "ISS", lat: 20, lng: 30, altitudeKm: 420 },
     { id: "2", name: "HST", lat: -10, lng: 120, altitudeKm: 550 },
@@ -396,10 +407,7 @@ function SatelliteCoverageRing({
   return (
     <line>
       <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          args={[positions, 3]}
-        />
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
       <lineBasicMaterial
         color="#34d399"
@@ -523,10 +531,7 @@ export function EarthGlobe3D({
   }, [])
 
   const mapTexture = useMemo(() => createMapTexture(theme), [theme])
-  const borderPositions = useMemo(
-    () => buildBorderPositions(BORDER_MESH),
-    []
-  )
+  const borderPositions = useMemo(() => buildBorderPositions(BORDER_MESH), [])
 
   const earthMaterial = useMemo(() => {
     const mat = new THREE.MeshStandardMaterial({
@@ -547,12 +552,14 @@ export function EarthGlobe3D({
 
   const isDark = theme === "dark"
   const glowColor = isDark ? "#60a5fa" : "#22c55e"
-  const borderColor = isDark ? "rgba(148, 163, 184, 0.65)" : "rgba(15, 23, 42, 0.9)"
+  const borderColor = isDark
+    ? "rgba(148, 163, 184, 0.65)"
+    : "rgba(15, 23, 42, 0.9)"
 
   return (
     <div
       className={clsx(
-        "relative min-h-full h-full w-full overflow-hidden rounded-2xl",
+        "relative h-full min-h-full w-full overflow-hidden rounded-2xl",
         className
       )}
     >
@@ -567,7 +574,11 @@ export function EarthGlobe3D({
         <fog attach="fog" args={[isDark ? "#020617" : "#eef2ff", 6, 28]} />
 
         <ambientLight intensity={0.8} color={isDark ? "#8fb5ff" : "#f8fafc"} />
-        <directionalLight intensity={1.2} position={[5, 3, 5]} color={"#ffffff"} />
+        <directionalLight
+          intensity={1.2}
+          position={[5, 3, 5]}
+          color={"#ffffff"}
+        />
         <pointLight intensity={0.6} position={[-4, -2, -4]} color="#60a5fa" />
 
         <Stars
@@ -604,7 +615,12 @@ export function EarthGlobe3D({
               args={[borderPositions, 3]}
             />
           </bufferGeometry>
-          <lineBasicMaterial color={borderColor} linewidth={1.5} transparent opacity={0.6} />
+          <lineBasicMaterial
+            color={borderColor}
+            linewidth={1.5}
+            transparent
+            opacity={0.6}
+          />
         </lineSegments>
 
         <SatelliteVisualizationLayer

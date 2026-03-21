@@ -1,4 +1,11 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from "react"
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+} from "react"
 import { select } from "d3-selection"
 import { zoom, zoomIdentity, ZoomTransform } from "d3-zoom"
 import { geoPath, geoGraticule10, geoEqualEarth, geoCentroid } from "d3-geo"
@@ -113,7 +120,9 @@ const MAX_LABEL_OPACITY = 1
 
 function getLabelOpacity(scale: number) {
   const normalized = Math.min(1, Math.max(0, (scale - 1) / 3))
-  return MIN_LABEL_OPACITY + normalized * (MAX_LABEL_OPACITY - MIN_LABEL_OPACITY)
+  return (
+    MIN_LABEL_OPACITY + normalized * (MAX_LABEL_OPACITY - MIN_LABEL_OPACITY)
+  )
 }
 
 function buildTrack(
@@ -198,7 +207,10 @@ function resolveCountryRegion(feature: GeoJSON.Feature) {
   )
 }
 
-function useRenderedSatellites(satellites: SatelliteMap[], referenceTime: Date) {
+function useRenderedSatellites(
+  satellites: SatelliteMap[],
+  referenceTime: Date
+) {
   return useMemo<RenderedSatellite[]>(() => {
     return satellites.map((sat) => ({
       id: sat.id,

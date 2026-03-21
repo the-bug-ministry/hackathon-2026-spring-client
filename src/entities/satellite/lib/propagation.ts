@@ -55,6 +55,8 @@ export function propagateSatellitePosition(
 export function calculateOrbitalPeriodMin(altitudeKm: number) {
   const radius = EARTH_RADIUS_KM + Math.max(0, altitudeKm)
   const periodSeconds =
-    (2 * Math.PI * Math.sqrt(Math.pow(radius, 3) / STANDARD_GRAVITATIONAL_PARAMETER))
+    2 *
+    Math.PI *
+    Math.sqrt(Math.pow(radius, 3) / STANDARD_GRAVITATIONAL_PARAMETER)
   return periodSeconds / 60
 }

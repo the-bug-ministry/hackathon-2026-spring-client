@@ -32,6 +32,7 @@ import { useMemo } from "react"
 
 export function ListPage() {
   const data = useMemo(() => satellitesMock as Satellite[], [])
+  // query to api
 
   const columns = useMemo<ColumnDef<Satellite>[]>(
     () => [

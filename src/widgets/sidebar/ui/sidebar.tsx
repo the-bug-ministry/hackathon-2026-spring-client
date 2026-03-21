@@ -186,85 +186,10 @@ export const SatellitesMenuList = () => {
   )
 }
 
-const SidebarUserCard = () => {
-  const { account, status } = useAuth()
-
-  if (status === "PENDING" || !account) {
-    return (
-      <div className="p-2">
-        <div className="rounded-2xl border border-border/70 bg-card/70 p-3 shadow-sm backdrop-blur">
-          <div className="flex items-start gap-3">
-            <div className="h-10 w-10 animate-pulse rounded-lg bg-muted" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-              <div className="h-3 w-32 animate-pulse rounded bg-muted" />
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  const initials =
-    `${account.firstName?.[0] || ""}${account.lastName?.[0] || ""}`.toUpperCase() ||
-    account.username[0].toUpperCase()
-
-  return (
-    <div className="p-2">
-      <div className="rounded-2xl border border-border/70 bg-card/70 p-3 shadow-sm backdrop-blur">
-        <div className="flex items-start gap-3">
-          <Avatar className="h-10 w-10 border">
-            <AvatarImage
-              src={account.image}
-              alt={`${account.firstName} ${account.lastName}`}
-            />
-            <AvatarFallback className="text-xs font-semibold">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-foreground">
-              {account.firstName} {account.lastName}
-            </div>
-            <div className="truncate text-xs text-muted-foreground">
-              {account.email}
-            </div>
-
-            <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-medium text-primary">
-              <ShieldCheckIcon className="size-3" />
-              Пользователь
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-3">
-          <Button
-            asChild
-            variant="ghost"
-            className="h-9 w-full justify-between rounded-xl border border-border/60 bg-background/50 px-3 hover:bg-accent"
-          >
-            <Link to="/dashboard/profile">
-              Профиль
-              <ChevronRightIcon className="size-4" />
-            </Link>
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export const AppSidebar = () => {
   return (
     <Sidebar className="flex flex-col">
-      <div className="min-h-0 flex-1">
-        <SatellitesMenuList />
-      </div>
-
-      <Separator />
-
-      <SidebarUserCard />
+      <SatellitesMenuList />
     </Sidebar>
   )
 }
