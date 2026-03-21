@@ -1,1 +1,1 @@
-export { EarthGlobe3D } from './ui/globe';
+export { EarthGlobe3D } from "./ui/globe"

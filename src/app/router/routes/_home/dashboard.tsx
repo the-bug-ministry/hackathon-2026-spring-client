@@ -24,7 +24,7 @@ function RouteComponent() {
       <AppSidebar />
       <SidebarInset>
         <AppHeader />
-        <div className="h-ful absolute inset-0 z-10 w-full px-2 pt-14">
+        <div className="absolute inset-0 z-10 h-full w-full px-2 pt-14">
           <Outlet />
 
           <Toaster />
