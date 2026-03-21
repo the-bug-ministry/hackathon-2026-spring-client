@@ -1,15 +1,17 @@
-import type { TleDemoQueryParams } from "../dto/tle-demo"
+import type { SatelliteDemoQueryParams } from "../dto/satellite-demo"
 
 export const satelliteKeys = {
   root: ["satellite"] as const,
   tleUpload: () => [...satelliteKeys.root, "tle", "upload"] as const,
-  tleDemo: (filters: TleDemoQueryParams) =>
+  satelliteDemo: (filters: SatelliteDemoQueryParams) =>
     [
       ...satelliteKeys.root,
-      "tle",
       "demo",
       filters.country ?? "",
       filters.type ?? "",
       filters.mission ?? "",
     ] as const,
+
+  satelliteDemoById: (id: string) =>
+    [...satelliteKeys.root, "demo", "byId", id] as const,
 }

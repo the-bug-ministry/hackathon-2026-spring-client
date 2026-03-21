@@ -184,7 +184,7 @@ src/
 
 Дополнительно:
 
-- `VITE_PUBLIC_SATELLITE_DATA_SOURCE` — если задать `mock`, на карте используются только локальные моки (`satellitesMapMock`). Иначе данные берутся с API `GET /tle/demo` с учётом фильтров в сайдбаре.
+- `VITE_PUBLIC_SATELLITE_DATA_SOURCE` — если задать `mock`, на карте используются только локальные моки (`satellitesMapMock`). Иначе данные берутся с API `GET /satellite/demo` (query: `country`, `type`, `mission`) с учётом фильтров в сайдбаре.
 
 ---
 

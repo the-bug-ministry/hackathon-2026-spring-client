@@ -9,7 +9,7 @@ import {
 import { useQuery } from "@tanstack/react-query"
 import type { SatelliteMap } from "@/entities/satellite/model"
 import { satellitesMapMock } from "@/entities/satellite/lib/marge"
-import { tleDemoItemsToSatelliteMap } from "@/entities/satellite/lib/tle-demo-to-satellite-map"
+import { satelliteDemoListToSatelliteMap } from "@/entities/satellite/lib/satellite-demo-to-map"
 import { satelliteOptions } from "@/entities/satellite/api/contracts/satellite.options"
 import { isSatelliteMockMode } from "@/shared/config/satellite-data-source"
 
@@ -96,7 +96,7 @@ export function SatelliteCatalogProvider({ children }: { children: ReactNode }) 
   )
 
   const demoQuery = useQuery({
-    ...satelliteOptions.tleDemo(demoParams),
+    ...satelliteOptions.satelliteDemo(demoParams),
     enabled: !isMockSource && satelliteDataLayer === "demo",
     placeholderData: (previousData) => previousData,
   })
@@ -117,7 +117,7 @@ export function SatelliteCatalogProvider({ children }: { children: ReactNode }) 
     }
 
     const items = demoQuery.data?.data ?? []
-    let mapped = tleDemoItemsToSatelliteMap(items)
+    let mapped = satelliteDemoListToSatelliteMap(items)
     if (search.trim()) {
       const q = search.toLowerCase()
       mapped = mapped.filter(

@@ -1,22 +1,10 @@
-/** Элемент списка демо TLE с бэка */
-export type TleDemoItem = {
+/** Строка TLE из GET /tle/demo (сопоставление с спутником по noradId) */
+export type TleDemoLineItem = {
   noradId: number
   tle1: string
   tle2: string
 }
 
-/** Тело ответа GET /tle/demo */
 export type TleDemoResponse = {
-  data: TleDemoItem[]
-}
-
-/** Параметры запроса (query) без signal */
-export type TleDemoQueryParams = {
-  country?: string
-  type?: string
-  mission?: string
-}
-
-export type TleDemoRequestParams = TleDemoQueryParams & {
-  signal?: AbortSignal
+  data: TleDemoLineItem[]
 }

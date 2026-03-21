@@ -9,6 +9,7 @@ type RequestParams = {
   method?: Method
   path: string
   body?: object | FormData
+  params?: Record<string, string | number | boolean | undefined>
   signal?: AbortSignal
   headers?: Record<string, string>
   responseType?: AxiosRequestConfig["responseType"]
@@ -35,14 +36,24 @@ class ApiClient {
     method = "GET",
     path,
     body,
+    params,
     signal,
     headers,
     responseType,
   }: RequestParams): AxiosRequestConfig {
+    const query =
+      params &&
+      Object.fromEntries(
+        Object.entries(params).filter(
+          ([, v]) => v !== undefined && v !== "",
+        ),
+      )
+
     return {
       method,
       url: `${this.baseUrl}/${path}`,
       data: body,
+      params: query && Object.keys(query).length > 0 ? query : undefined,
       signal,
       responseType,
       headers: {

@@ -1,5 +1,8 @@
 import { SatelliteMetaCard } from "@/entities/satellite/ui"
+import { useSatelliteDemoByIdQuery } from "@/entities/satellite/lib"
+import type { SatelliteMap } from "@/entities/satellite/model"
 import { useSatelliteCatalog } from "@/pages/dashboard/model/satellite-catalog-context"
+import { isSatelliteMockMode } from "@/shared/config/satellite-data-source"
 import { useMemo } from "react"
 import {
   propagateSatellitePosition,
@@ -26,20 +29,38 @@ export const TrackedSatellites = ({
       : []
   }, [selectedSatellitesStr])
 
+  const isMock = isSatelliteMockMode()
+  const detailId =
+    !isMock && selectedIds.length === 1 ? selectedIds[0] : undefined
+  const detailQuery = useSatelliteDemoByIdQuery(detailId)
+
   const selectedSatellites = useMemo(() => {
     return catalog.filter((sat) => selectedIds.includes(sat.id))
   }, [catalog, selectedIds])
 
+  /** Каталог + при одном выборе — ответ GET /satellite/demo/:id (после клика) */
+  const resolvedSatellites = useMemo(() => {
+    const map = new Map<string, SatelliteMap>()
+    const detail = detailQuery.data?.data
+    for (const sat of selectedSatellites) {
+      const resolved =
+        selectedIds.length === 1 && detail?.id === sat.id ? detail : sat
+      map.set(sat.id, resolved)
+    }
+    return map
+  }, [selectedSatellites, selectedIds.length, detailQuery.data])
+
   const selectedPositions = useMemo(() => {
     const map = new Map<string, OrbitalPosition>()
     selectedSatellites.forEach((satellite) => {
-      const position = propagateSatellitePosition(satellite, simulationTime)
+      const resolved = resolvedSatellites.get(satellite.id) ?? satellite
+      const position = propagateSatellitePosition(resolved, simulationTime)
       if (position) {
         map.set(satellite.id, position)
       }
     })
     return map
-  }, [selectedSatellites, simulationTime])
+  }, [selectedSatellites, resolvedSatellites, simulationTime])
 
   return (
     <div className="absolute right-4 bottom-4 flex max-h-[calc(100vh-112px)] w-[360px] flex-col overflow-hidden rounded-2xl border border-border/70 bg-background/95 shadow-2xl backdrop-blur">
@@ -65,19 +86,20 @@ export const TrackedSatellites = ({
         {selectedSatellites.length > 0 ? (
           <div className="space-y-3 p-4">
             {selectedSatellites.map((satellite) => {
+              const resolved = resolvedSatellites.get(satellite.id) ?? satellite
               const position = selectedPositions.get(satellite.id)
-              const altitude = position?.altitudeKm ?? satellite.altitudeKm
-              const speed = position?.speedKms ?? satellite.speedKms
+              const altitude = position?.altitudeKm ?? resolved.altitudeKm
+              const speed = position?.speedKms ?? resolved.speedKms
               const periodMin = calculateOrbitalPeriodMin(altitude)
 
               return (
                 <div key={satellite.id} className="shrink-0">
                   <SatelliteMetaCard
-                    name={satellite.name}
-                    type={satellite.type}
-                    country={satellite.country}
-                    operator={satellite.operator}
-                    mission={satellite.mission}
+                    name={resolved.name}
+                    type={resolved.type}
+                    country={resolved.country}
+                    operator={resolved.operator}
+                    mission={resolved.mission}
                     latitude={position?.lat ?? 0}
                     longitude={position?.lng ?? 0}
                     altitudeKm={Math.round(altitude)}
