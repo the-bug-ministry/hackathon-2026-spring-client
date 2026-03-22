@@ -297,7 +297,8 @@ export function useDataTable<TData>(props: UseDataTableProps<TData>) {
     getFacetedMinMaxValues: getFacetedMinMaxValues(),
     manualPagination: true,
     manualSorting: true,
-    manualFiltering: true,
+    /** Иначе `getFilteredRowModel` не вызывается — фильтры в UI не сужают строки. */
+    manualFiltering: false,
     meta: {
       ...tableProps.meta,
       queryKeys: {

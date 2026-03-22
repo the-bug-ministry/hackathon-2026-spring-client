@@ -16,16 +16,10 @@ export default defineConfig({
   },
   server: {
     host: true,
-    allowedHosts: [
-      'front.thecreatorq.ru',
-      '.thecreatorq.ru'
-    ],
+    allowedHosts: ["front.thecreatorq.ru", ".thecreatorq.ru"],
   },
   preview: {
     host: true,
-    allowedHosts: [
-      'front.thecreatorq.ru',
-      '.thecreatorq.ru'
-    ],
+    allowedHosts: ["front.thecreatorq.ru", ".thecreatorq.ru"],
   },
 })

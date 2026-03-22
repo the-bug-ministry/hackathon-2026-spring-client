@@ -178,11 +178,7 @@ function buildTrackSegmentPositions(path: Array<[number, number, number]>) {
     const positions = new Float32Array(segment.length * 3)
 
     segment.forEach(([lng, lat, altKm], index) => {
-      const point = latLngToVector3(
-        lat,
-        lng,
-        orbitRadiusFromAltitudeKm(altKm)
-      )
+      const point = latLngToVector3(lat, lng, orbitRadiusFromAltitudeKm(altKm))
       const offset = index * 3
       positions[offset] = point.x
       positions[offset + 1] = point.y
@@ -434,8 +430,7 @@ function SatellitePoint({
   registerInteractiveTarget,
 }: SatellitePointProps) {
   const position = useMemo(
-    () =>
-      latLngToVector3(lat, lng, orbitRadiusFromAltitudeKm(altitudeKm)),
+    () => latLngToVector3(lat, lng, orbitRadiusFromAltitudeKm(altitudeKm)),
     [lat, lng, altitudeKm]
   )
   const ud = useMemo(() => meshUserData(satelliteId), [satelliteId])
