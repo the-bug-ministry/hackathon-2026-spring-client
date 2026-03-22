@@ -667,7 +667,7 @@ export function EarthGlobe3D({
           isSceneReady ? "opacity-100" : "opacity-0"
         )}
       >
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900/90 to-slate-950/60" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-slate-950 via-slate-900/90 to-slate-950/60" />
         <Canvas
           className="relative h-full w-full"
           style={{ height: "100%" }}
