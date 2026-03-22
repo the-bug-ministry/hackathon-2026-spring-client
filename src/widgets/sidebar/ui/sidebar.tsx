@@ -1,7 +1,4 @@
-import {
-  Sidebar,
-  SidebarGroup,
-} from "@/shared/components/ui/sidebar"
+import { Sidebar, SidebarGroup } from "@/shared/components/ui/sidebar"
 import { Tabs, TabsList, TabsTrigger } from "@/shared/components/ui/tabs"
 import { ApparatSearch } from "./components/search"
 import { ApparatFilter } from "./components/filter"

@@ -14,7 +14,11 @@ type LogoIconProps = ComponentPropsWithoutRef<"svg"> & {
   size?: LogoIconSize
 }
 
-export const LogoIcon = ({ size = "md", className, ...props }: LogoIconProps) => {
+export const LogoIcon = ({
+  size = "md",
+  className,
+  ...props
+}: LogoIconProps) => {
   const gradientId = useId()
   const { width, height } = sizeMap[size]
 
@@ -37,14 +41,27 @@ export const LogoIcon = ({ size = "md", className, ...props }: LogoIconProps) =>
       {...props}
     >
       <defs>
-        <linearGradient id={gradientId} x1="20" y1="20" x2="90" y2="90" gradientUnits="userSpaceOnUse">
+        <linearGradient
+          id={gradientId}
+          x1="20"
+          y1="20"
+          x2="90"
+          y2="90"
+          gradientUnits="userSpaceOnUse"
+        >
           <stop offset="0%" stopColor={primary} />
           <stop offset="100%" stopColor={accent} />
         </linearGradient>
       </defs>
 
       <g transform="translate(10 10)">
-        <circle cx="40" cy="40" r="26" stroke={`url(#${gradientId})`} strokeWidth="6" />
+        <circle
+          cx="40"
+          cy="40"
+          r="26"
+          stroke={`url(#${gradientId})`}
+          strokeWidth="6"
+        />
         <ellipse
           cx="40"
           cy="40"

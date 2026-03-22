@@ -13,6 +13,7 @@ import worldAtlas from "world-atlas/countries-110m.json"
 import type { Topology, GeometryCollection } from "topojson-specification"
 import { propagateSatellitePosition } from "@/entities/satellite/lib/propagation"
 import type { OrbitalPosition } from "@/entities/satellite/lib/propagation"
+import { horizonFootprintAngularRadiusRad } from "@/entities/satellite/lib/coverage-footprint"
 
 const atlas = worldAtlas as unknown as Topology<{
   countries: GeometryCollection
@@ -43,6 +44,8 @@ type SatellitePointProps = {
   altitudeKm: number
   showLabel?: boolean
   labelOpacity?: number
+  /** Узкий вьюпорт — меньше маркер (touch) */
+  compact?: boolean
   /** Регистрация группы сфер для raycast-hover (без траектории/HTML) */
   registerInteractiveTarget?: (id: string) => (node: THREE.Group | null) => void
 }
@@ -59,7 +62,6 @@ type RenderedSatellite3D = {
 
 type GlobeTheme = "dark" | "light"
 
-const EARTH_RADIUS_KM = 6371
 const DEG_TO_RAD = Math.PI / 180
 const RAD_TO_DEG = 180 / Math.PI
 
@@ -179,9 +181,7 @@ function buildCoverageCirclePositions(
   radius = 2.008
 ) {
   const positions = new Float32Array((resolution + 1) * 3)
-  const sanitizedAltitude = Math.max(0, altitudeKm)
-  const ratio = EARTH_RADIUS_KM / (EARTH_RADIUS_KM + sanitizedAltitude)
-  const coverageAngle = Math.acos(Math.min(1, Math.max(-1, ratio)))
+  const coverageAngle = horizonFootprintAngularRadiusRad(altitudeKm)
   const latRad = lat * DEG_TO_RAD
   const lngRad = lng * DEG_TO_RAD
 
@@ -209,6 +209,46 @@ function buildCoverageCirclePositions(
   }
 
   return positions
+}
+
+/** Треугольный веер от надира к кольцу горизонта — площадь «видимой» поверхности (по высоте из TLE). */
+function buildCoverageCapBufferGeometry(
+  lat: number,
+  lng: number,
+  altitudeKm: number,
+  surfaceRadius = 2.008,
+  resolution = 64
+): THREE.BufferGeometry {
+  const ringFlat = buildCoverageCirclePositions(
+    lat,
+    lng,
+    altitudeKm,
+    resolution,
+    surfaceRadius
+  )
+  const ringVerts = resolution
+  const nadir = latLngToVector3(lat, lng, surfaceRadius)
+  const posArr = new Float32Array((1 + ringVerts) * 3)
+  posArr[0] = nadir.x
+  posArr[1] = nadir.y
+  posArr[2] = nadir.z
+  for (let i = 0; i < ringVerts; i++) {
+    const o = i * 3
+    const dst = 3 + o
+    posArr[dst] = ringFlat[o]!
+    posArr[dst + 1] = ringFlat[o + 1]!
+    posArr[dst + 2] = ringFlat[o + 2]!
+  }
+  const indices: number[] = []
+  for (let i = 0; i < ringVerts; i++) {
+    const next = (i + 1) % ringVerts
+    indices.push(0, 1 + i, 1 + next)
+  }
+  const geom = new THREE.BufferGeometry()
+  geom.setAttribute("position", new THREE.BufferAttribute(posArr, 3))
+  geom.setIndex(indices)
+  geom.computeVertexNormals()
+  return geom
 }
 
 function useRenderedSatellites(
@@ -306,30 +346,27 @@ function SatellitePoint({
   altitudeKm: _altitudeKm,
   showLabel = false,
   labelOpacity = 1,
+  compact = false,
   registerInteractiveTarget,
 }: SatellitePointProps) {
   const position = useMemo(() => latLngToVector3(lat, lng, 2.025), [lat, lng])
   const ud = useMemo(() => meshUserData(satelliteId), [satelliteId])
   const setInteractiveGroup = registerInteractiveTarget?.(satelliteId)
+  const coreR = compact ? 0.022 : 0.034
 
   return (
     <group position={position}>
       <group ref={setInteractiveGroup}>
         <mesh userData={ud}>
-          <sphereGeometry args={[0.04, 16, 16]} />
+          <sphereGeometry args={[coreR, 16, 16]} />
           <meshBasicMaterial color="#22c55e" />
-        </mesh>
-
-        <mesh userData={ud}>
-          <sphereGeometry args={[0.08, 16, 16]} />
-          <meshBasicMaterial color="#22c55e" transparent opacity={0.15} />
         </mesh>
       </group>
 
       {showLabel && (
         <Html
           center
-          distanceFactor={4}
+          distanceFactor={compact ? 3 : 4}
           style={{ width: "max-content", pointerEvents: "none" }}
           className="w-max!"
         >
@@ -342,43 +379,6 @@ function SatellitePoint({
         </Html>
       )}
     </group>
-  )
-}
-
-function MockSatelliteLayer({
-  satellites = [],
-}: {
-  satellites?: SatelliteMap[]
-}) {
-  const fallback = [
-    { id: "1", name: "ISS", lat: 20, lng: 30, altitudeKm: 420 },
-    { id: "2", name: "HST", lat: -10, lng: 120, altitudeKm: 550 },
-    { id: "3", name: "NOAA 20", lat: 48, lng: -75, altitudeKm: 850 },
-  ]
-
-  const points = satellites.length
-    ? satellites.map((sat, index) => ({
-        id: sat.id,
-        name: sat.name,
-        lat: ((index * 37) % 140) - 70,
-        lng: ((index * 67) % 360) - 180,
-        altitudeKm: sat.altitudeKm ?? 500,
-      }))
-    : fallback
-
-  return (
-    <>
-      {points.map((point) => (
-        <SatellitePoint
-          key={point.id}
-          satelliteId={point.id}
-          lat={point.lat}
-          lng={point.lng}
-          name={point.name}
-          altitudeKm={point.altitudeKm}
-        />
-      ))}
-    </>
   )
 }
 
@@ -426,7 +426,7 @@ function SatelliteCoverageRing({
 }) {
   const positions = useMemo(
     () => buildCoverageCirclePositions(lat, lng, altitudeKm),
-    [lat, lng, altitudeKm],
+    [lat, lng, altitudeKm]
   )
   if (!positions.length) return null
 
@@ -436,7 +436,7 @@ function SatelliteCoverageRing({
     const mat = new THREE.LineBasicMaterial({
       color: "#34d399",
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.45,
     })
     const line = new THREE.Line(geom, mat)
     line.raycast = () => null
@@ -446,6 +446,39 @@ function SatelliteCoverageRing({
   return <primitive object={lineObject} />
 }
 
+function SatelliteCoverageCap({
+  lat,
+  lng,
+  altitudeKm,
+}: {
+  lat: number
+  lng: number
+  altitudeKm: number
+}) {
+  const geometry = useMemo(
+    () => buildCoverageCapBufferGeometry(lat, lng, altitudeKm),
+    [lat, lng, altitudeKm]
+  )
+
+  useEffect(() => {
+    return () => {
+      geometry.dispose()
+    }
+  }, [geometry])
+
+  return (
+    <mesh geometry={geometry} raycast={() => null}>
+      <meshBasicMaterial
+        color="#34d399"
+        transparent
+        opacity={0.14}
+        side={THREE.DoubleSide}
+        depthWrite={false}
+      />
+    </mesh>
+  )
+}
+
 function RenderedSatelliteMarker({
   satellite,
   isTracked,
@@ -453,6 +486,7 @@ function RenderedSatelliteMarker({
   registerInteractiveTarget,
   onSelect,
   labelOpacity,
+  compactMarkers,
 }: {
   satellite: RenderedSatellite3D
   isTracked: boolean
@@ -460,6 +494,7 @@ function RenderedSatelliteMarker({
   registerInteractiveTarget: (id: string) => (node: THREE.Group | null) => void
   onSelect?: (id: string) => void
   labelOpacity?: number
+  compactMarkers?: boolean
 }) {
   if (!satellite.current) return null
 
@@ -473,6 +508,21 @@ function RenderedSatelliteMarker({
         onSelect?.(satellite.id)
       }}
     >
+      {isTracked && (
+        <>
+          <SatelliteCoverageCap
+            lat={current.lat}
+            lng={current.lng}
+            altitudeKm={current.altitudeKm}
+          />
+          <SatelliteCoverageRing
+            lat={current.lat}
+            lng={current.lng}
+            altitudeKm={current.altitudeKm}
+          />
+        </>
+      )}
+      {showTrajectory && <SatelliteTrack path={satellite.path} />}
       <SatellitePoint
         satelliteId={satellite.id}
         lat={current.lat}
@@ -481,20 +531,9 @@ function RenderedSatelliteMarker({
         altitudeKm={current.altitudeKm}
         showLabel={showTrajectory}
         labelOpacity={labelOpacity}
+        compact={compactMarkers}
         registerInteractiveTarget={registerInteractiveTarget}
       />
-      {showTrajectory && (
-        <>
-          <SatelliteTrack path={satellite.path} />
-          {isTracked && (
-            <SatelliteCoverageRing
-              lat={current.lat}
-              lng={current.lng}
-              altitudeKm={current.altitudeKm}
-            />
-          )}
-        </>
-      )}
     </group>
   )
 }
@@ -507,6 +546,7 @@ function SatelliteVisualizationLayer({
   simulationTime,
   onSatelliteClick,
   labelOpacity = 1,
+  compactMarkers = false,
 }: {
   satellites?: SatelliteMap[]
   trackedSatelliteIds?: string[]
@@ -515,6 +555,7 @@ function SatelliteVisualizationLayer({
   simulationTime?: Date
   onSatelliteClick?: (id: string) => void
   labelOpacity?: number
+  compactMarkers?: boolean
 }) {
   const { camera, gl } = useThree()
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
@@ -526,7 +567,7 @@ function SatelliteVisualizationLayer({
       if (node) hitTargetsRef.current.set(id, node)
       else hitTargetsRef.current.delete(id)
     },
-    [],
+    []
   )
 
   useEffect(() => {
@@ -543,7 +584,7 @@ function SatelliteVisualizationLayer({
       }
       const hits = raycaster.intersectObjects(targets, true)
       const first = hits.find(
-        (h) => typeof h.object.userData.satelliteId === "string",
+        (h) => typeof h.object.userData.satelliteId === "string"
       )
       onSatelliteHover(first?.object.userData.satelliteId ?? null)
     }
@@ -558,15 +599,15 @@ function SatelliteVisualizationLayer({
 
   const rendered = useRenderedSatellites(
     satellites,
-    simulationTime ?? new Date(),
+    simulationTime ?? new Date()
   )
   const trackedSet = useMemo(
     () => new Set(trackedSatelliteIds ?? []),
-    [trackedSatelliteIds],
+    [trackedSatelliteIds]
   )
 
-  if (!rendered.length) {
-    return <MockSatelliteLayer satellites={satellites} />
+  if (!satellites.length) {
+    return null
   }
 
   return (
@@ -580,6 +621,7 @@ function SatelliteVisualizationLayer({
           registerInteractiveTarget={registerInteractiveTarget}
           onSelect={onSatelliteClick}
           labelOpacity={labelOpacity}
+          compactMarkers={compactMarkers}
         />
       ))}
     </>
@@ -599,6 +641,16 @@ export function EarthGlobe3D({
   const [hoveredSatelliteId, setHoveredSatelliteId] = useState<string | null>(
     null
   )
+  const [compactMarkers, setCompactMarkers] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const mq = window.matchMedia("(max-width: 640px)")
+    const update = () => setCompactMarkers(mq.matches)
+    update()
+    mq.addEventListener("change", update)
+    return () => mq.removeEventListener("change", update)
+  }, [])
 
   useEffect(() => {
     const resolveTheme = () =>
@@ -678,7 +730,10 @@ export function EarthGlobe3D({
           <color attach="background" args={[isDark ? "#020617" : "#eef2ff"]} />
           <fog attach="fog" args={[isDark ? "#020617" : "#eef2ff", 6, 28]} />
 
-          <ambientLight intensity={0.8} color={isDark ? "#8fb5ff" : "#f8fafc"} />
+          <ambientLight
+            intensity={0.8}
+            color={isDark ? "#8fb5ff" : "#f8fafc"}
+          />
           <directionalLight
             intensity={1.2}
             position={[5, 3, 5]}
@@ -736,6 +791,7 @@ export function EarthGlobe3D({
             simulationTime={simulationTime}
             onSatelliteClick={onSatelliteClick}
             labelOpacity={globeLabelOpacity}
+            compactMarkers={compactMarkers}
           />
           <GlobeLabelOpacityController setOpacity={setGlobeLabelOpacity} />
 
