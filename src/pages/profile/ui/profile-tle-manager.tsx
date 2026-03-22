@@ -59,10 +59,10 @@ export function ProfileTleManager({ className }: { className?: string }) {
       { file },
       {
         onSuccess: () => {
-          toast.success("Файл TLE успешно загружен на сервер")
+          toast.success("Файл TLE успешно загружен")
         },
         onError: () => {
-          toast.error("Не удалось загрузить файл на сервер")
+          toast.error("Не удалось загрузить файл")
         },
       }
     )

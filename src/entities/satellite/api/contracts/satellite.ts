@@ -5,7 +5,14 @@ import type {
   SatelliteDemoRequestParams,
   SatelliteDemoResponse,
 } from "../dto/satellite-demo"
+import type {
+  SatelliteUserByIdRequestParams,
+  SatelliteUserByIdResponse,
+  SatelliteUserRequestParams,
+  SatelliteUserResponse,
+} from "../dto/satellite-user"
 import type { TleDemoResponse } from "../dto/tle-demo"
+import type { TleUserResponse } from "../dto/tle-user"
 import type { TleUploadParams, TleUploadResponse } from "../dto/tle-upload"
 
 const demoQuery = (p: SatelliteDemoRequestParams) => ({
@@ -25,10 +32,10 @@ export const satelliteApi = {
     })
   },
 
-  /** Одна запись демо по id (path-сегмент кодируется для не-ASCII и спецсимволов) */
+  /** Одна запись демо по id  */
   getSatelliteDemoById: ({ id, signal }: SatelliteDemoByIdRequestParams) => {
     return apiClient.request<SatelliteDemoByIdResponse>({
-      path: `satellite/demo/${encodeURIComponent(id)}`,
+      path: `satellite/demo/${id}`,
       method: "GET",
       signal,
     })
@@ -38,6 +45,35 @@ export const satelliteApi = {
   getTleDemo: (params: SatelliteDemoRequestParams) => {
     return apiClient.request<TleDemoResponse>({
       path: "tle/demo",
+      method: "GET",
+      signal: params.signal,
+      params: demoQuery(params),
+    })
+  },
+
+  /** Каталог спутников пользователя (загруженные данные) */
+  getSatelliteUser: (params: SatelliteUserRequestParams) => {
+    return apiClient.request<SatelliteUserResponse>({
+      path: "satellite/user",
+      method: "GET",
+      signal: params.signal,
+      params: demoQuery(params),
+    })
+  },
+
+  /** Одна запись пользовательского каталога по id */
+  getSatelliteUserById: ({ id, signal }: SatelliteUserByIdRequestParams) => {
+    return apiClient.request<SatelliteUserByIdResponse>({
+      path: `satellite/user/${encodeURIComponent(id)}`,
+      method: "GET",
+      signal,
+    })
+  },
+
+  /** TLE пользователя; сшивается с getSatelliteUser по noradId */
+  getTleUser: (params: SatelliteUserRequestParams) => {
+    return apiClient.request<TleUserResponse>({
+      path: "tle/user",
       method: "GET",
       signal: params.signal,
       params: demoQuery(params),

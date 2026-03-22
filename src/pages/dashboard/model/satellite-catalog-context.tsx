@@ -13,8 +13,8 @@ import { satelliteDemoListToSatelliteMap } from "@/entities/satellite/lib/satell
 import { satelliteOptions } from "@/entities/satellite/api/contracts/satellite.options"
 import { isSatelliteMockMode } from "@/shared/config/satellite-data-source"
 
-/** Включить вкладку «Мои данные» и загрузку TLE пользователя (пока false) */
-export const ENABLE_USER_SATELLITE_LAYER = false
+/** Включить вкладку «Мои данные» и API `satellite/user`, `tle/user` */
+export const ENABLE_USER_SATELLITE_LAYER = true
 
 export type SatelliteDataLayer = "demo" | "user"
 
@@ -23,7 +23,7 @@ function filterMockCatalog(
   search: string,
   orbit: string,
   country: string,
-  mission: string,
+  mission: string
 ): SatelliteMap[] {
   return list.filter((satellite) => {
     const matchesSearch =
@@ -31,8 +31,7 @@ function filterMockCatalog(
       satellite.desc.toLowerCase().includes(search.toLowerCase())
 
     const matchesOrbit =
-      orbit === "all" ||
-      satellite.type.toLowerCase() === orbit.toLowerCase()
+      orbit === "all" || satellite.type.toLowerCase() === orbit.toLowerCase()
 
     const matchesCountry =
       country === "all" ||
@@ -69,7 +68,11 @@ type SatelliteCatalogContextValue = {
 const SatelliteCatalogContext =
   createContext<SatelliteCatalogContextValue | null>(null)
 
-export function SatelliteCatalogProvider({ children }: { children: ReactNode }) {
+export function SatelliteCatalogProvider({
+  children,
+}: {
+  children: ReactNode
+}) {
   const [satelliteDataLayer, setSatelliteDataLayerState] =
     useState<SatelliteDataLayer>("demo")
   const [search, setSearch] = useState("")
@@ -92,12 +95,18 @@ export function SatelliteCatalogProvider({ children }: { children: ReactNode }) 
       type: orbit === "all" ? undefined : orbit,
       mission: mission === "all" ? undefined : mission,
     }),
-    [country, orbit, mission],
+    [country, orbit, mission]
   )
 
   const demoQuery = useQuery({
     ...satelliteOptions.satelliteDemo(demoParams),
     enabled: !isMockSource && satelliteDataLayer === "demo",
+    placeholderData: (previousData) => previousData,
+  })
+
+  const userQuery = useQuery({
+    ...satelliteOptions.satelliteUser(demoParams),
+    enabled: !isMockSource && satelliteDataLayer === "user",
     placeholderData: (previousData) => previousData,
   })
 
@@ -108,21 +117,20 @@ export function SatelliteCatalogProvider({ children }: { children: ReactNode }) 
         search,
         orbit,
         country,
-        mission,
+        mission
       )
     }
 
-    if (satelliteDataLayer === "user") {
-      return []
-    }
+    const items =
+      satelliteDataLayer === "user"
+        ? (userQuery.data?.data ?? [])
+        : (demoQuery.data?.data ?? [])
 
-    const items = demoQuery.data?.data ?? []
     let mapped = satelliteDemoListToSatelliteMap(items)
     if (search.trim()) {
       const q = search.toLowerCase()
       mapped = mapped.filter(
-        (s) =>
-          s.name.toLowerCase().includes(q) || String(s.noradId).includes(q),
+        (s) => s.name.toLowerCase().includes(q) || String(s.noradId).includes(q)
       )
     }
     return mapped
@@ -130,6 +138,7 @@ export function SatelliteCatalogProvider({ children }: { children: ReactNode }) 
     satelliteDataLayer,
     isMockSource,
     demoQuery.data,
+    userQuery.data,
     search,
     orbit,
     country,
@@ -137,12 +146,16 @@ export function SatelliteCatalogProvider({ children }: { children: ReactNode }) 
   ])
 
   const isLoading =
-    satelliteDataLayer === "demo" &&
     !isMockSource &&
-    demoQuery.isPending &&
-    !demoQuery.data
+    ((satelliteDataLayer === "demo" &&
+      demoQuery.isPending &&
+      !demoQuery.data) ||
+      (satelliteDataLayer === "user" && userQuery.isPending && !userQuery.data))
+
   const isError =
-    satelliteDataLayer === "demo" && !isMockSource && demoQuery.isError
+    !isMockSource &&
+    ((satelliteDataLayer === "demo" && demoQuery.isError) ||
+      (satelliteDataLayer === "user" && userQuery.isError))
 
   const value: SatelliteCatalogContextValue = {
     catalog,
@@ -173,7 +186,7 @@ export function useSatelliteCatalog(): SatelliteCatalogContextValue {
   const ctx = useContext(SatelliteCatalogContext)
   if (!ctx) {
     throw new Error(
-      "useSatelliteCatalog must be used within SatelliteCatalogProvider",
+      "useSatelliteCatalog must be used within SatelliteCatalogProvider"
     )
   }
   return ctx

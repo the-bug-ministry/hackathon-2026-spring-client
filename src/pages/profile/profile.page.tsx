@@ -41,8 +41,10 @@ export function ProfilePage() {
 
   return (
     <div className="flex h-full w-full flex-col gap-4 p-3 sm:gap-6 sm:p-6 md:p-10">
-      <div className="rounded-2xl border border-slate-200 bg-white/85 p-4 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40 sm:sticky sm:top-2 sm:z-10 sm:p-6">
-        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Профиль</h1>
+      <div className="rounded-2xl border border-slate-200 bg-white/85 p-4 shadow-lg shadow-slate-200/40 backdrop-blur sm:sticky sm:top-2 sm:z-10 sm:p-6 dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40">
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+          Профиль
+        </h1>
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Управляй своими данными и настройками аккаунта
         </p>
@@ -76,8 +78,12 @@ export function ProfilePage() {
                   </span>
                 </div>
 
-                <div className="sm:ml-auto w-full sm:w-auto">
-                  <Button variant="outline" disabled={isDisabled} className="w-full sm:w-auto">
+                <div className="w-full sm:ml-auto sm:w-auto">
+                  <Button
+                    variant="outline"
+                    disabled={isDisabled}
+                    className="w-full sm:w-auto"
+                  >
                     Изменить
                   </Button>
                 </div>
@@ -85,11 +91,14 @@ export function ProfilePage() {
             </Card>
 
             <Tabs defaultValue="profile" className="space-y-4">
-              <TabsList className="gap-1 rounded-3xl p-[3px] overflow-x-auto flex-nowrap [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden" variant="default">
-                <TabsTrigger value="profile" className="whitespace-nowrap px-4">
+              <TabsList
+                className="flex-nowrap gap-1 overflow-x-auto rounded-3xl p-[3px] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                variant="default"
+              >
+                <TabsTrigger value="profile" className="px-4 whitespace-nowrap">
                   Личные данные
                 </TabsTrigger>
-                <TabsTrigger value="tle" className="whitespace-nowrap px-4">
+                <TabsTrigger value="tle" className="px-4 whitespace-nowrap">
                   Список TLE дампов
                 </TabsTrigger>
               </TabsList>
@@ -182,7 +191,7 @@ export function ProfilePage() {
 
                       <Button
                         variant="destructive"
-                        className="flex w-full sm:w-fit items-center gap-2"
+                        className="flex w-full items-center gap-2 sm:w-fit"
                         disabled={isLoading}
                       >
                         <LogOutIcon className="size-4 w-fit" /> Выйти из

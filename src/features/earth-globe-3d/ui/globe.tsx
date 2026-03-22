@@ -426,7 +426,7 @@ function SatelliteCoverageRing({
 }) {
   const positions = useMemo(
     () => buildCoverageCirclePositions(lat, lng, altitudeKm),
-    [lat, lng, altitudeKm],
+    [lat, lng, altitudeKm]
   )
   if (!positions.length) return null
 
@@ -526,7 +526,7 @@ function SatelliteVisualizationLayer({
       if (node) hitTargetsRef.current.set(id, node)
       else hitTargetsRef.current.delete(id)
     },
-    [],
+    []
   )
 
   useEffect(() => {
@@ -543,7 +543,7 @@ function SatelliteVisualizationLayer({
       }
       const hits = raycaster.intersectObjects(targets, true)
       const first = hits.find(
-        (h) => typeof h.object.userData.satelliteId === "string",
+        (h) => typeof h.object.userData.satelliteId === "string"
       )
       onSatelliteHover(first?.object.userData.satelliteId ?? null)
     }
@@ -558,11 +558,11 @@ function SatelliteVisualizationLayer({
 
   const rendered = useRenderedSatellites(
     satellites,
-    simulationTime ?? new Date(),
+    simulationTime ?? new Date()
   )
   const trackedSet = useMemo(
     () => new Set(trackedSatelliteIds ?? []),
-    [trackedSatelliteIds],
+    [trackedSatelliteIds]
   )
 
   if (!rendered.length) {
@@ -678,7 +678,10 @@ export function EarthGlobe3D({
           <color attach="background" args={[isDark ? "#020617" : "#eef2ff"]} />
           <fog attach="fog" args={[isDark ? "#020617" : "#eef2ff", 6, 28]} />
 
-          <ambientLight intensity={0.8} color={isDark ? "#8fb5ff" : "#f8fafc"} />
+          <ambientLight
+            intensity={0.8}
+            color={isDark ? "#8fb5ff" : "#f8fafc"}
+          />
           <directionalLight
             intensity={1.2}
             position={[5, 3, 5]}
