@@ -3,7 +3,6 @@ import ReactDOM from "react-dom/client"
 import { NuqsAdapter } from "nuqs/adapters/react"
 
 import App from "./app/App.tsx"
-
 const rootElement = document.getElementById("app")!
 
 if (!rootElement.innerHTML) {
@@ -15,4 +14,12 @@ if (!rootElement.innerHTML) {
       </NuqsAdapter>
     </StrictMode>
   )
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .catch((error) => console.error("SW registration failed", error))
+  })
 }

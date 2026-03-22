@@ -258,9 +258,9 @@ export function ListPage() {
   })
 
   return (
-    <div className="flex h-full w-full flex-col gap-6 p-6 md:p-10">
-      <div className="sticky top-0 z-10 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40">
-        <h1 className="mb-2 text-2xl font-bold text-slate-900 dark:text-white">
+    <div className="flex h-full w-full flex-col gap-4 p-3 sm:gap-6 sm:p-6 md:p-10">
+      <div className="rounded-2xl border border-slate-200 bg-white/85 p-4 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40 sm:sticky sm:top-2 sm:z-10 sm:p-6">
+        <h1 className="mb-2 text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
           База данных спутников
         </h1>
         <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -268,9 +268,9 @@ export function ListPage() {
         </p>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40">
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-6">
-          <DataTable table={table} className="min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/85 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-4 md:p-6">
+          <DataTable table={table} className="min-h-0 flex-1 text-xs sm:text-sm">
             <DataTableToolbar table={table} />
           </DataTable>
         </div>
