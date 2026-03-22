@@ -25,6 +25,17 @@ import type { OrbitalPosition } from "@/entities/satellite/lib/propagation"
 import { footprintRingLngLat } from "@/entities/satellite/lib/coverage-footprint"
 import { COUNTRY_NAME_RU_BY_EN } from "@/shared/config/country-names-ru"
 import { OrbitPreloader } from "@/shared/components/ui/orbit-preloader"
+import { Button } from "@/shared/components/ui/button"
+import { PassBucketsGrid } from "@/shared/components/pass-buckets-grid"
+import {
+  classifyPointPasses,
+  PASS_NEAR_POINT_KM,
+  PASS_SAMPLE_STEP_SEC,
+  RECENT_WINDOW_MIN,
+  UPCOMING_WINDOW_MIN,
+  type PassBuckets,
+} from "@/entities/satellite/lib/satellite-point-passes"
+import { MapPin } from "lucide-react"
 
 /** Порог «базового» масштаба для ограничения панорамы. */
 const BASE_ZOOM_EPS = 1e-4
@@ -127,25 +138,8 @@ type HoveredCountry = {
   center: [number, number] | null
 }
 
-type CountryPassItem = {
-  id: string
-  name: string
-  type: string
-  /** Смещение в минутах относительно now: <0 — прошло, >0 — впереди. */
-  offsetMinutes?: number
-}
-
-type CountryPasses = {
-  current: CountryPassItem[]
-  recent: CountryPassItem[]
-  upcoming: CountryPassItem[]
-}
-
 const MIN_LABEL_OPACITY = 0.35
 const MAX_LABEL_OPACITY = 1
-const RECENT_WINDOW_MIN = 20
-const UPCOMING_WINDOW_MIN = 20
-const PASS_SAMPLE_STEP_SEC = 60
 const COUNTRY_DISPLAY_NAMES_RU =
   typeof Intl !== "undefined" && typeof Intl.DisplayNames !== "undefined"
     ? new Intl.DisplayNames(["ru"], { type: "region" })
@@ -330,8 +324,8 @@ function classifyCountryPasses(
   feature: GeoJSON.Feature,
   satellites: SatelliteMap[],
   referenceTime: Date
-): CountryPasses {
-  const result: CountryPasses = {
+): PassBuckets {
+  const result: PassBuckets = {
     current: [],
     recent: [],
     upcoming: [],
@@ -425,6 +419,12 @@ export function EarthMap2D({
   const [hoveredSatelliteId, setHoveredSatelliteId] = useState<string | null>(
     null
   )
+  const [mapPickMode, setMapPickMode] = useState(false)
+  const [selectedMapPoint, setSelectedMapPoint] = useState<{
+    lng: number
+    lat: number
+  } | null>(null)
+
   const now = simulationTime ?? new Date()
   const renderedSatellites = useRenderedSatellites(satellites, now)
   const trackedIds = useMemo(
@@ -435,6 +435,16 @@ export function EarthMap2D({
     if (!hoveredCountry) return null
     return classifyCountryPasses(hoveredCountry.feature, satellites, now)
   }, [hoveredCountry, satellites, now])
+
+  const selectedPointPasses = useMemo(() => {
+    if (!selectedMapPoint) return null
+    return classifyPointPasses(
+      selectedMapPoint.lng,
+      selectedMapPoint.lat,
+      satellites,
+      now
+    )
+  }, [selectedMapPoint, satellites, now])
 
   useEffect(() => {
     if (!wrapperRef.current) return
@@ -586,6 +596,22 @@ export function EarthMap2D({
       maxTy: Math.max(0, h / 2),
     }
   }, [path])
+
+  const handleMapPickClick = (event: MouseEvent<SVGRectElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const svg = svgRef.current
+    if (!svg) return
+    const bounds = svg.getBoundingClientRect()
+    const px = event.clientX - bounds.left
+    const py = event.clientY - bounds.top
+    const [x, y] = mapTransformRef.current.invert([px, py])
+    const inv = projection.invert?.([x, y])
+    if (!inv) return
+    const [lng, lat] = inv
+    setSelectedMapPoint({ lng, lat })
+    setMapPickMode(false)
+  }
 
   useLayoutEffect(() => {
     const svgEl = svgRef.current
@@ -858,8 +884,102 @@ export function EarthMap2D({
                 })}
               </g>
             )}
+
+            {selectedMapPoint && !mapPickMode && (() => {
+              const projected = projection([
+                selectedMapPoint.lng,
+                selectedMapPoint.lat,
+              ])
+              if (!projected) return null
+              const [sx, sy] = projected
+              return (
+                <g pointerEvents="none">
+                  <circle
+                    cx={sx}
+                    cy={sy}
+                    r={14 * markerScale}
+                    fill="none"
+                    stroke={highlightStroke}
+                    strokeWidth={1.6}
+                    strokeDasharray="4 3"
+                    opacity={0.95}
+                  />
+                  <circle
+                    cx={sx}
+                    cy={sy}
+                    r={4.5 * markerScale}
+                    fill={highlightStroke}
+                    fillOpacity={0.35}
+                  />
+                </g>
+              )
+            })()}
+
+            {mapPickMode && (
+              <rect
+                x={0}
+                y={0}
+                width={size.width}
+                height={size.height}
+                fill="rgba(15,23,42,0.14)"
+                style={{ cursor: "crosshair" }}
+                onClick={handleMapPickClick}
+              />
+            )}
           </g>
         </svg>
+
+        {selectedMapPoint && selectedPointPasses && (
+          <div className="pointer-events-none absolute right-4 bottom-4 z-50 w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-white/20 bg-slate-950/90 px-4 py-3 text-xs text-white shadow-2xl shadow-black/60 backdrop-blur">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white">
+              <MapPin className="size-4 shrink-0 text-sky-400" aria-hidden />
+              Точка на карте
+            </div>
+            <div className="mt-1 text-[11px] text-white/70">
+              {selectedMapPoint.lat.toFixed(2)}°, {selectedMapPoint.lng.toFixed(2)}° · зона пролёта ±{PASS_NEAR_POINT_KM}{" "}
+              км
+            </div>
+            <div className="mt-1 text-[10px] text-white/50">
+              Учтено спутников:{" "}
+              {selectedPointPasses.current.length +
+                selectedPointPasses.recent.length +
+                selectedPointPasses.upcoming.length}
+            </div>
+            <PassBucketsGrid passes={selectedPointPasses} />
+          </div>
+        )}
+
+        <div className="pointer-events-none absolute bottom-4 left-4 z-50">
+          <div className="pointer-events-auto flex max-w-[min(14rem,42vw)] flex-col gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={mapPickMode ? "default" : "secondary"}
+              className="gap-2 shadow-lg"
+              onClick={() => setMapPickMode((v) => !v)}
+            >
+              <MapPin className="size-3.5 shrink-0" aria-hidden />
+              {mapPickMode ? "Отмена" : "Точка на карте"}
+            </Button>
+            {mapPickMode && (
+              <p className="rounded-lg border border-white/15 bg-slate-950/80 px-2 py-1.5 text-[10px] leading-snug text-white/80 backdrop-blur">
+                Кликните по карте. Учитываются масштаб и сдвиг карты.
+              </p>
+            )}
+            {selectedMapPoint && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-2 border-white/30 bg-slate-950/70 text-white shadow-lg backdrop-blur"
+                onClick={() => setSelectedMapPoint(null)}
+              >
+                <MapPin className="size-3.5 shrink-0 opacity-70" aria-hidden />
+                Сбросить точку
+              </Button>
+            )}
+          </div>
+        </div>
 
         {hoveredCountry && tooltipStyle && (
           <div
@@ -880,63 +1000,7 @@ export function EarthMap2D({
               </div>
             )}
             {hoveredCountryPasses && (
-              <div className="mt-2 grid grid-cols-3 gap-1">
-                {[
-                  {
-                    title: "Сейчас",
-                    items: hoveredCountryPasses.current,
-                    accent:
-                      "bg-emerald-400/20 text-emerald-100 border-emerald-300/40",
-                  },
-                  {
-                    title: `Недавно (≤${RECENT_WINDOW_MIN} мин)`,
-                    items: hoveredCountryPasses.recent.slice(0, 5),
-                    accent: "bg-sky-400/15 text-sky-50 border-sky-300/40",
-                  },
-                  {
-                    title: `Скоро (≤${UPCOMING_WINDOW_MIN} мин)`,
-                    items: hoveredCountryPasses.upcoming.slice(0, 5),
-                    accent:
-                      "bg-amber-400/15 text-amber-100 border-amber-300/40",
-                  },
-                ].map((section) => (
-                  <div
-                    key={section.title}
-                    className="flex flex-col gap-0.5 rounded-xl border border-white/10 bg-white/5 p-1"
-                  >
-                    <div className="flex items-center justify-between text-[9px] text-white/70">
-                      <span>{section.title}</span>
-                      <span>{section.items.length}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-0.5">
-                      {section.items.length ? (
-                        section.items.map((item) => (
-                          <span
-                            key={item.id}
-                            className={cn(
-                              "rounded-full border px-1 py-[2px] text-[9px] leading-none",
-                              section.accent
-                            )}
-                          >
-                            {item.name}
-                            {typeof item.offsetMinutes === "number" &&
-                              item.offsetMinutes !== 0 && (
-                                <span className="text-white/60">
-                                  {" "}
-                                  {item.offsetMinutes > 0
-                                    ? `${item.offsetMinutes} м.`
-                                    : `${Math.abs(item.offsetMinutes)} м.`}
-                                </span>
-                              )}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-white/50">Нет</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <PassBucketsGrid passes={hoveredCountryPasses} />
             )}
           </div>
         )}

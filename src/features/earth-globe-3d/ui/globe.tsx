@@ -5,7 +5,14 @@ import { OrbitControls, Html, Stars } from "@react-three/drei"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import clsx from "clsx"
+import { MapPin } from "lucide-react"
 import { OrbitPreloader } from "@/shared/components/ui/orbit-preloader"
+import { Button } from "@/shared/components/ui/button"
+import { PassBucketsGrid } from "@/shared/components/pass-buckets-grid"
+import {
+  classifyPointPasses,
+  PASS_NEAR_POINT_KM,
+} from "@/entities/satellite/lib/satellite-point-passes"
 import type { SatelliteMap } from "@/entities/satellite/model"
 import { geoNaturalEarth1, geoPath } from "d3-geo"
 import { feature, mesh } from "topojson-client"
@@ -46,6 +53,10 @@ type SatellitePointProps = {
   labelOpacity?: number
   /** Узкий вьюпорт — меньше маркер (touch) */
   compact?: boolean
+  /** Режим выбора точки на глобусе — не перехватывать лучи */
+  suppressRaycast?: boolean
+  /** Подсветка: спутник в зоне выбранной точки (категория «Сейчас») */
+  overSelectedPoint?: boolean
   /** Регистрация группы сфер для raycast-hover (без траектории/HTML) */
   registerInteractiveTarget?: (id: string) => (node: THREE.Group | null) => void
 }
@@ -101,6 +112,21 @@ function latLngToVector3(lat: number, lng: number, radius = 2.02) {
   const y = radius * Math.cos(phi)
 
   return new THREE.Vector3(x, y, z)
+}
+
+function normalizeLngDeg(lng: number) {
+  let x = lng
+  while (x > 180) x -= 360
+  while (x < -180) x += 360
+  return x
+}
+
+/** Обратное преобразование к `latLngToVector3` для единичного радиус-вектора (локальные оси сферы Земли). */
+function vector3ToLatLngFromUnit(n: THREE.Vector3): { lat: number; lng: number } {
+  const lat = Math.asin(Math.min(1, Math.max(-1, n.y))) * RAD_TO_DEG
+  const theta = Math.atan2(n.z, -n.x)
+  const lng = normalizeLngDeg(theta * RAD_TO_DEG - 180)
+  return { lat, lng }
 }
 
 function buildTrack(
@@ -173,17 +199,18 @@ function buildTrackSegmentPositions(
   })
 }
 
-function buildCoverageCirclePositions(
+/** Кольцо [lng,lat] с непрерывной долготой (без скачка 360°), чтобы сегменты шли по поверхности. */
+function buildCoverageRingLatLng(
   lat: number,
   lng: number,
   altitudeKm: number,
-  resolution = 64,
-  radius = 2.008
-) {
-  const positions = new Float32Array((resolution + 1) * 3)
+  resolution: number
+): [number, number][] {
   const coverageAngle = horizonFootprintAngularRadiusRad(altitudeKm)
   const latRad = lat * DEG_TO_RAD
   const lngRad = lng * DEG_TO_RAD
+  const ring: [number, number][] = []
+  let prevLngDeg: number | null = null
 
   for (let i = 0; i <= resolution; i++) {
     const bearing = (i / resolution) * 2 * Math.PI
@@ -196,16 +223,74 @@ function buildCoverageCirclePositions(
       Math.sin(bearing) * Math.sin(coverageAngle) * Math.cos(latRad)
     const denominator =
       Math.cos(coverageAngle) - Math.sin(latRad) * Math.sin(lat2)
-    const lon2 = lngRad + Math.atan2(numerator, denominator)
 
+    let lon2 = lngRad + Math.atan2(numerator, denominator)
+    lon2 = ((lon2 + Math.PI) % (2 * Math.PI)) - Math.PI
+
+    let degLng = lon2 * RAD_TO_DEG
     const degLat = lat2 * RAD_TO_DEG
-    const degLng = lon2 * RAD_TO_DEG
-    const point = latLngToVector3(degLat, degLng, radius)
-    const offset = i * 3
 
-    positions[offset] = point.x
-    positions[offset + 1] = point.y
-    positions[offset + 2] = point.z
+    if (prevLngDeg !== null) {
+      while (degLng - prevLngDeg > 180) degLng -= 360
+      while (degLng - prevLngDeg < -180) degLng += 360
+    }
+    prevLngDeg = degLng
+
+    ring.push([normalizeLngDeg(degLng), degLat])
+  }
+
+  return ring
+}
+
+function coverageFootprintResolution(altitudeKm: number) {
+  const coverageAngle = horizonFootprintAngularRadiusRad(altitudeKm)
+  return Math.max(
+    72,
+    Math.min(256, Math.ceil(72 + (coverageAngle / (Math.PI / 2)) * 96))
+  )
+}
+
+/** Сегменты линии по поверхности (разрез по линии перемены дат, как у трека). */
+function buildCoverageRingSegmentPositions(
+  lat: number,
+  lng: number,
+  altitudeKm: number,
+  surfaceRadius = 2.008
+): Float32Array[] {
+  const resolution = coverageFootprintResolution(altitudeKm)
+  const ring = buildCoverageRingLatLng(lat, lng, altitudeKm, resolution)
+  const segments = splitTrackOnDateline(ring)
+  return segments.map((segment) => {
+    const positions = new Float32Array(segment.length * 3)
+    segment.forEach(([lngP, latP], index) => {
+      const point = latLngToVector3(latP, lngP, surfaceRadius)
+      const o = index * 3
+      positions[o] = point.x
+      positions[o + 1] = point.y
+      positions[o + 2] = point.z
+    })
+    return positions
+  })
+}
+
+/** Одно замкнутое кольцо в 3D для заливки (те же углы, что и у линии). */
+function buildCoverageCirclePositionsClosed(
+  lat: number,
+  lng: number,
+  altitudeKm: number,
+  surfaceRadius = 2.008
+) {
+  const resolution = coverageFootprintResolution(altitudeKm)
+  const ring = buildCoverageRingLatLng(lat, lng, altitudeKm, resolution)
+  const positions = new Float32Array((resolution + 1) * 3)
+
+  for (let i = 0; i <= resolution; i++) {
+    const [lngP, latP] = ring[i]!
+    const point = latLngToVector3(latP, lngP, surfaceRadius)
+    const o = i * 3
+    positions[o] = point.x
+    positions[o + 1] = point.y
+    positions[o + 2] = point.z
   }
 
   return positions
@@ -216,28 +301,33 @@ function buildCoverageCapBufferGeometry(
   lat: number,
   lng: number,
   altitudeKm: number,
-  surfaceRadius = 2.008,
-  resolution = 64
+  surfaceRadius = 2.008
 ): THREE.BufferGeometry {
-  const ringFlat = buildCoverageCirclePositions(
+  const ringFlat = buildCoverageCirclePositionsClosed(
     lat,
     lng,
     altitudeKm,
-    resolution,
     surfaceRadius
   )
+  const resolution = coverageFootprintResolution(altitudeKm)
   const ringVerts = resolution
   const nadir = latLngToVector3(lat, lng, surfaceRadius)
+  const inflate = 1.004
+  const nadirOut = nadir.clone().multiplyScalar(inflate)
   const posArr = new Float32Array((1 + ringVerts) * 3)
-  posArr[0] = nadir.x
-  posArr[1] = nadir.y
-  posArr[2] = nadir.z
+  posArr[0] = nadirOut.x
+  posArr[1] = nadirOut.y
+  posArr[2] = nadirOut.z
   for (let i = 0; i < ringVerts; i++) {
     const o = i * 3
     const dst = 3 + o
-    posArr[dst] = ringFlat[o]!
-    posArr[dst + 1] = ringFlat[o + 1]!
-    posArr[dst + 2] = ringFlat[o + 2]!
+    const x = ringFlat[o]!
+    const y = ringFlat[o + 1]!
+    const z = ringFlat[o + 2]!
+    const inflated = new THREE.Vector3(x, y, z).multiplyScalar(inflate)
+    posArr[dst] = inflated.x
+    posArr[dst + 1] = inflated.y
+    posArr[dst + 2] = inflated.z
   }
   const indices: number[] = []
   for (let i = 0; i < ringVerts; i++) {
@@ -347,19 +437,26 @@ function SatellitePoint({
   showLabel = false,
   labelOpacity = 1,
   compact = false,
+  suppressRaycast = false,
+  overSelectedPoint = false,
   registerInteractiveTarget,
 }: SatellitePointProps) {
   const position = useMemo(() => latLngToVector3(lat, lng, 2.025), [lat, lng])
   const ud = useMemo(() => meshUserData(satelliteId), [satelliteId])
   const setInteractiveGroup = registerInteractiveTarget?.(satelliteId)
-  const coreR = compact ? 0.022 : 0.034
+  const baseR = compact ? 0.022 : 0.034
+  const coreR = overSelectedPoint ? baseR * 1.45 : baseR
+  const coreColor = overSelectedPoint ? "#fbbf24" : "#22c55e"
 
   return (
     <group position={position}>
       <group ref={setInteractiveGroup}>
-        <mesh userData={ud}>
+        <mesh
+          userData={ud}
+          raycast={suppressRaycast ? () => null : undefined}
+        >
           <sphereGeometry args={[coreR, 16, 16]} />
-          <meshBasicMaterial color="#22c55e" />
+          <meshBasicMaterial color={coreColor} />
         </mesh>
       </group>
 
@@ -415,6 +512,25 @@ function SatelliteTrack({ path }: { path: Array<[number, number]> }) {
   )
 }
 
+function CoverageRingSegment({ positions }: { positions: Float32Array }) {
+  const lineObject = useMemo(() => {
+    const geom = new THREE.BufferGeometry()
+    geom.setAttribute("position", new THREE.BufferAttribute(positions, 3))
+    const mat = new THREE.LineBasicMaterial({
+      color: "#34d399",
+      transparent: true,
+      opacity: 0.5,
+      depthTest: false,
+      depthWrite: false,
+    })
+    const line = new THREE.Line(geom, mat)
+    line.raycast = () => null
+    return line
+  }, [positions])
+
+  return <primitive object={lineObject} />
+}
+
 function SatelliteCoverageRing({
   lat,
   lng,
@@ -424,26 +540,19 @@ function SatelliteCoverageRing({
   lng: number
   altitudeKm: number
 }) {
-  const positions = useMemo(
-    () => buildCoverageCirclePositions(lat, lng, altitudeKm),
+  const segments = useMemo(
+    () => buildCoverageRingSegmentPositions(lat, lng, altitudeKm),
     [lat, lng, altitudeKm]
   )
-  if (!positions.length) return null
+  if (!segments.length) return null
 
-  const lineObject = useMemo(() => {
-    const geom = new THREE.BufferGeometry()
-    geom.setAttribute("position", new THREE.BufferAttribute(positions, 3))
-    const mat = new THREE.LineBasicMaterial({
-      color: "#34d399",
-      transparent: true,
-      opacity: 0.45,
-    })
-    const line = new THREE.Line(geom, mat)
-    line.raycast = () => null
-    return line
-  }, [positions])
-
-  return <primitive object={lineObject} />
+  return (
+    <>
+      {segments.map((positions, index) => (
+        <CoverageRingSegment key={`cov-ring-${index}`} positions={positions} />
+      ))}
+    </>
+  )
 }
 
 function SatelliteCoverageCap({
@@ -467,13 +576,14 @@ function SatelliteCoverageCap({
   }, [geometry])
 
   return (
-    <mesh geometry={geometry} raycast={() => null}>
+    <mesh geometry={geometry} raycast={() => null} renderOrder={2}>
       <meshBasicMaterial
         color="#34d399"
         transparent
-        opacity={0.14}
+        opacity={0.16}
         side={THREE.DoubleSide}
         depthWrite={false}
+        depthTest={false}
       />
     </mesh>
   )
@@ -487,6 +597,8 @@ function RenderedSatelliteMarker({
   onSelect,
   labelOpacity,
   compactMarkers,
+  suppressSatellitePointer = false,
+  overSelectedPoint = false,
 }: {
   satellite: RenderedSatellite3D
   isTracked: boolean
@@ -495,15 +607,18 @@ function RenderedSatelliteMarker({
   onSelect?: (id: string) => void
   labelOpacity?: number
   compactMarkers?: boolean
+  suppressSatellitePointer?: boolean
+  overSelectedPoint?: boolean
 }) {
   if (!satellite.current) return null
 
   const { current } = satellite
-  const showTrajectory = isTracked || isHovered
+  const showTrajectory = isTracked || isHovered || Boolean(overSelectedPoint)
 
   return (
     <group
       onPointerDown={(event) => {
+        if (suppressSatellitePointer) return
         event.stopPropagation()
         onSelect?.(satellite.id)
       }}
@@ -532,6 +647,8 @@ function RenderedSatelliteMarker({
         showLabel={showTrajectory}
         labelOpacity={labelOpacity}
         compact={compactMarkers}
+        suppressRaycast={suppressSatellitePointer}
+        overSelectedPoint={overSelectedPoint}
         registerInteractiveTarget={registerInteractiveTarget}
       />
     </group>
@@ -547,6 +664,8 @@ function SatelliteVisualizationLayer({
   onSatelliteClick,
   labelOpacity = 1,
   compactMarkers = false,
+  suppressSatellitePointer = false,
+  overPointSatelliteIds,
 }: {
   satellites?: SatelliteMap[]
   trackedSatelliteIds?: string[]
@@ -556,6 +675,10 @@ function SatelliteVisualizationLayer({
   onSatelliteClick?: (id: string) => void
   labelOpacity?: number
   compactMarkers?: boolean
+  /** Режим клика по поверхности Земли — отключаем hit по спутникам */
+  suppressSatellitePointer?: boolean
+  /** id спутников над выбранной точкой (зона «Сейчас») — подсветка на глобусе */
+  overPointSatelliteIds?: Set<string>
 }) {
   const { camera, gl } = useThree()
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
@@ -622,9 +745,23 @@ function SatelliteVisualizationLayer({
           onSelect={onSatelliteClick}
           labelOpacity={labelOpacity}
           compactMarkers={compactMarkers}
+          suppressSatellitePointer={suppressSatellitePointer}
+          overSelectedPoint={overPointSatelliteIds?.has(satellite.id) ?? false}
         />
       ))}
     </>
+  )
+}
+
+function GlobeSelectedPointMarker({ lat, lng }: { lat: number; lng: number }) {
+  const position = useMemo(() => latLngToVector3(lat, lng, 2.014), [lat, lng])
+  return (
+    <group position={position}>
+      <mesh raycast={() => null}>
+        <sphereGeometry args={[0.06, 18, 18]} />
+        <meshBasicMaterial color="#38bdf8" />
+      </mesh>
+    </group>
   )
 }
 
@@ -642,6 +779,31 @@ export function EarthGlobe3D({
     null
   )
   const [compactMarkers, setCompactMarkers] = useState(false)
+  const earthGroupRef = useRef<THREE.Group>(null)
+  const [mapPickMode, setMapPickMode] = useState(false)
+  const [selectedGlobePoint, setSelectedGlobePoint] = useState<{
+    lng: number
+    lat: number
+  } | null>(null)
+
+  const selectedPointPasses = useMemo(() => {
+    if (!selectedGlobePoint) return null
+    return classifyPointPasses(
+      selectedGlobePoint.lng,
+      selectedGlobePoint.lat,
+      satellites,
+      simulationTime ?? new Date()
+    )
+  }, [selectedGlobePoint, satellites, simulationTime])
+
+  const globeOverPointSatelliteIds = useMemo(() => {
+    if (!selectedPointPasses) return undefined
+    return new Set(selectedPointPasses.current.map((p) => p.id))
+  }, [selectedPointPasses])
+
+  useEffect(() => {
+    if (mapPickMode) setHoveredSatelliteId(null)
+  }, [mapPickMode])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -715,13 +877,16 @@ export function EarthGlobe3D({
 
       <div
         className={clsx(
-          "h-full w-full transition-opacity duration-700",
+          "relative h-full w-full transition-opacity duration-700",
           isSceneReady ? "opacity-100" : "opacity-0"
         )}
       >
         <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-slate-950 via-slate-900/90 to-slate-950/60" />
         <Canvas
-          className="relative h-full w-full"
+          className={clsx(
+            "relative h-full w-full",
+            mapPickMode && "cursor-crosshair"
+          )}
           style={{ height: "100%" }}
           camera={{ position: [0, 0, 6.5], fov: 45 }}
           gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
@@ -751,13 +916,24 @@ export function EarthGlobe3D({
             speed={0.3}
           />
 
-          <group rotation={[0, Math.PI, 0]}>
-            <mesh>
+          <group ref={earthGroupRef} rotation={[0, Math.PI, 0]}>
+            <mesh
+              onPointerDown={(e) => {
+                if (!mapPickMode) return
+                e.stopPropagation()
+                const mesh = e.object as THREE.Mesh
+                const local = mesh.worldToLocal(e.point.clone())
+                const n = local.clone().normalize()
+                const { lat, lng } = vector3ToLatLngFromUnit(n)
+                setSelectedGlobePoint({ lat, lng })
+                setMapPickMode(false)
+              }}
+            >
               <sphereGeometry args={[2, 128, 128]} />
               <primitive object={earthMaterial} attach="material" />
             </mesh>
 
-            <mesh>
+            <mesh raycast={() => null}>
               <sphereGeometry args={[2.03, 128, 128]} />
               <meshStandardMaterial
                 color={glowColor}
@@ -766,9 +942,16 @@ export function EarthGlobe3D({
                 depthWrite={false}
               />
             </mesh>
+
+            {selectedGlobePoint && !mapPickMode && (
+              <GlobeSelectedPointMarker
+                lat={selectedGlobePoint.lat}
+                lng={selectedGlobePoint.lng}
+              />
+            )}
           </group>
 
-          <lineSegments>
+          <lineSegments raycast={() => null}>
             <bufferGeometry>
               <bufferAttribute
                 attach="attributes-position"
@@ -792,19 +975,76 @@ export function EarthGlobe3D({
             onSatelliteClick={onSatelliteClick}
             labelOpacity={globeLabelOpacity}
             compactMarkers={compactMarkers}
+            suppressSatellitePointer={mapPickMode}
+            overPointSatelliteIds={globeOverPointSatelliteIds}
           />
           <GlobeLabelOpacityController setOpacity={setGlobeLabelOpacity} />
 
           <OrbitControls
             enablePan={false}
+            enableRotate={!mapPickMode}
+            enableZoom={!mapPickMode}
             minDistance={3}
             maxDistance={12}
-            autoRotate
+            autoRotate={!mapPickMode}
             autoRotateSpeed={0.4}
             rotateSpeed={0.4}
             dampingFactor={0.1}
           />
         </Canvas>
+
+        {selectedGlobePoint && selectedPointPasses && (
+          <div className="pointer-events-none absolute right-4 bottom-4 z-20 w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-white/20 bg-slate-950/90 px-4 py-3 text-xs text-white shadow-2xl shadow-black/60 backdrop-blur">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white">
+              <MapPin className="size-4 shrink-0 text-sky-400" aria-hidden />
+              Точка на глобусе
+            </div>
+            <div className="mt-1 text-[11px] text-white/70">
+              {selectedGlobePoint.lat.toFixed(2)}°,{" "}
+              {selectedGlobePoint.lng.toFixed(2)}° · зона пролёта ±{PASS_NEAR_POINT_KM}{" "}
+              км
+            </div>
+            <div className="mt-1 text-[10px] text-white/50">
+              Учтено спутников:{" "}
+              {selectedPointPasses.current.length +
+                selectedPointPasses.recent.length +
+                selectedPointPasses.upcoming.length}
+            </div>
+            <PassBucketsGrid passes={selectedPointPasses} />
+          </div>
+        )}
+
+        <div className="pointer-events-none absolute bottom-4 left-4 z-20">
+          <div className="pointer-events-auto flex max-w-[min(14rem,42vw)] flex-col gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={mapPickMode ? "default" : "secondary"}
+              className="gap-2 shadow-lg"
+              onClick={() => setMapPickMode((v) => !v)}
+            >
+              <MapPin className="size-3.5 shrink-0" aria-hidden />
+              {mapPickMode ? "Отмена" : "Точка на глобусе"}
+            </Button>
+            {mapPickMode && (
+              <p className="rounded-lg border border-white/15 bg-slate-950/80 px-2 py-1.5 text-[10px] leading-snug text-white/80 backdrop-blur">
+                Кликните по поверхности Земли, чтобы выбрать точку.
+              </p>
+            )}
+            {selectedGlobePoint && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-2 border-white/30 bg-slate-950/70 text-white shadow-lg backdrop-blur"
+                onClick={() => setSelectedGlobePoint(null)}
+              >
+                <MapPin className="size-3.5 shrink-0 opacity-70" aria-hidden />
+                Сбросить точку
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
