@@ -5,14 +5,7 @@ import { OrbitControls, Html, Stars } from "@react-three/drei"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import clsx from "clsx"
-import { MapPin } from "lucide-react"
 import { OrbitPreloader } from "@/shared/components/ui/orbit-preloader"
-import { Button } from "@/shared/components/ui/button"
-import { PassBucketsGrid } from "@/shared/components/pass-buckets-grid"
-import {
-  classifyPointPasses,
-  PASS_NEAR_POINT_KM,
-} from "@/entities/satellite/lib/satellite-point-passes"
 import type { SatelliteMap } from "@/entities/satellite/model"
 import { geoNaturalEarth1, geoPath } from "d3-geo"
 import { feature, mesh } from "topojson-client"
@@ -20,7 +13,10 @@ import worldAtlas from "world-atlas/countries-110m.json"
 import type { Topology, GeometryCollection } from "topojson-specification"
 import { propagateSatellitePosition } from "@/entities/satellite/lib/propagation"
 import type { OrbitalPosition } from "@/entities/satellite/lib/propagation"
-import { horizonFootprintAngularRadiusRad } from "@/entities/satellite/lib/coverage-footprint"
+import {
+  EARTH_RADIUS_KM,
+  horizonFootprintAngularRadiusRad,
+} from "@/entities/satellite/lib/coverage-footprint"
 
 const atlas = worldAtlas as unknown as Topology<{
   countries: GeometryCollection
@@ -53,10 +49,6 @@ type SatellitePointProps = {
   labelOpacity?: number
   /** Узкий вьюпорт — меньше маркер (touch) */
   compact?: boolean
-  /** Режим выбора точки на глобусе — не перехватывать лучи */
-  suppressRaycast?: boolean
-  /** Подсветка: спутник в зоне выбранной точки (категория «Сейчас») */
-  overSelectedPoint?: boolean
   /** Регистрация группы сфер для raycast-hover (без траектории/HTML) */
   registerInteractiveTarget?: (id: string) => (node: THREE.Group | null) => void
 }
@@ -68,7 +60,7 @@ type RenderedSatellite3D = {
   name: string
   type: string
   current: SatPosition | null
-  path: Array<[number, number]>
+  path: Array<[number, number, number]>
 }
 
 type GlobeTheme = "dark" | "light"
@@ -78,6 +70,13 @@ const RAD_TO_DEG = 180 / Math.PI
 
 const MIN_GLOBE_LABEL_OPACITY = 0.35
 const MAX_GLOBE_LABEL_OPACITY = 1
+
+/** Радиус сферы Земли в сцене (совпадает с `sphereGeometry args={[2,...]}`). */
+const EARTH_SCENE_RADIUS = 2
+
+function orbitRadiusFromAltitudeKm(altitudeKm: number): number {
+  return EARTH_SCENE_RADIUS * (1 + Math.max(0, altitudeKm) / EARTH_RADIUS_KM)
+}
 
 function getGlobeLabelOpacity(distance: number) {
   const normalized = Math.min(1, Math.max(0, (distance - 3) / 6))
@@ -121,14 +120,6 @@ function normalizeLngDeg(lng: number) {
   return x
 }
 
-/** Обратное преобразование к `latLngToVector3` для единичного радиус-вектора (локальные оси сферы Земли). */
-function vector3ToLatLngFromUnit(n: THREE.Vector3): { lat: number; lng: number } {
-  const lat = Math.asin(Math.min(1, Math.max(-1, n.y))) * RAD_TO_DEG
-  const theta = Math.atan2(n.z, -n.x)
-  const lng = normalizeLngDeg(theta * RAD_TO_DEG - 180)
-  return { lat, lng }
-}
-
 function buildTrack(
   satellite: SatelliteMap,
   now: Date,
@@ -136,7 +127,7 @@ function buildTrack(
   minutesForward = 90,
   stepSec = 60
 ) {
-  const points: Array<[number, number]> = []
+  const points: Array<[number, number, number]> = []
 
   if (!satellite.tle1 || !satellite.tle2) return points
 
@@ -147,21 +138,23 @@ function buildTrack(
   ) {
     const date = new Date(now.getTime() + offset * 1000)
     const pos = propagateSatellitePosition(satellite, date)
-    if (pos) points.push([pos.lng, pos.lat])
+    if (pos) points.push([pos.lng, pos.lat, pos.altitudeKm])
   }
 
   return points
 }
 
-function splitTrackOnDateline(points: Array<[number, number]>) {
+function splitTrackOnDateline<T extends [number, number, ...number[]]>(
+  points: T[]
+): T[][] {
   if (!points.length) return []
 
-  const segments: Array<Array<[number, number]>> = []
-  let current: Array<[number, number]> = [points[0]]
+  const segments: T[][] = []
+  let current: T[] = [points[0]!]
 
   for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1]
-    const next = points[i]
+    const prev = points[i - 1]!
+    const next = points[i]!
     const lngDiff = Math.abs(next[0] - prev[0])
 
     if (lngDiff > 180) {
@@ -177,18 +170,19 @@ function splitTrackOnDateline(points: Array<[number, number]>) {
   return segments
 }
 
-function buildTrackSegmentPositions(
-  path: Array<[number, number]>,
-  radius = 2.02
-) {
+function buildTrackSegmentPositions(path: Array<[number, number, number]>) {
   if (!path.length) return []
 
   const segments = splitTrackOnDateline(path)
   return segments.map((segment) => {
     const positions = new Float32Array(segment.length * 3)
 
-    segment.forEach(([lng, lat], index) => {
-      const point = latLngToVector3(lat, lng, radius)
+    segment.forEach(([lng, lat, altKm], index) => {
+      const point = latLngToVector3(
+        lat,
+        lng,
+        orbitRadiusFromAltitudeKm(altKm)
+      )
       const offset = index * 3
       positions[offset] = point.x
       positions[offset + 1] = point.y
@@ -433,30 +427,27 @@ function SatellitePoint({
   lat,
   lng,
   name,
-  altitudeKm: _altitudeKm,
+  altitudeKm,
   showLabel = false,
   labelOpacity = 1,
   compact = false,
-  suppressRaycast = false,
-  overSelectedPoint = false,
   registerInteractiveTarget,
 }: SatellitePointProps) {
-  const position = useMemo(() => latLngToVector3(lat, lng, 2.025), [lat, lng])
+  const position = useMemo(
+    () =>
+      latLngToVector3(lat, lng, orbitRadiusFromAltitudeKm(altitudeKm)),
+    [lat, lng, altitudeKm]
+  )
   const ud = useMemo(() => meshUserData(satelliteId), [satelliteId])
   const setInteractiveGroup = registerInteractiveTarget?.(satelliteId)
   const baseR = compact ? 0.022 : 0.034
-  const coreR = overSelectedPoint ? baseR * 1.45 : baseR
-  const coreColor = overSelectedPoint ? "#fbbf24" : "#22c55e"
 
   return (
     <group position={position}>
       <group ref={setInteractiveGroup}>
-        <mesh
-          userData={ud}
-          raycast={suppressRaycast ? () => null : undefined}
-        >
-          <sphereGeometry args={[coreR, 16, 16]} />
-          <meshBasicMaterial color={coreColor} />
+        <mesh userData={ud}>
+          <sphereGeometry args={[baseR, 16, 16]} />
+          <meshBasicMaterial color="#22c55e" />
         </mesh>
       </group>
 
@@ -499,7 +490,7 @@ function DashedTrackSegment({ positions }: { positions: Float32Array }) {
   return <primitive object={lineObject} />
 }
 
-function SatelliteTrack({ path }: { path: Array<[number, number]> }) {
+function SatelliteTrack({ path }: { path: Array<[number, number, number]> }) {
   const segments = useMemo(() => buildTrackSegmentPositions(path), [path])
   if (!segments.length) return null
 
@@ -597,8 +588,6 @@ function RenderedSatelliteMarker({
   onSelect,
   labelOpacity,
   compactMarkers,
-  suppressSatellitePointer = false,
-  overSelectedPoint = false,
 }: {
   satellite: RenderedSatellite3D
   isTracked: boolean
@@ -607,18 +596,15 @@ function RenderedSatelliteMarker({
   onSelect?: (id: string) => void
   labelOpacity?: number
   compactMarkers?: boolean
-  suppressSatellitePointer?: boolean
-  overSelectedPoint?: boolean
 }) {
   if (!satellite.current) return null
 
   const { current } = satellite
-  const showTrajectory = isTracked || isHovered || Boolean(overSelectedPoint)
+  const showTrajectory = isTracked || isHovered
 
   return (
     <group
       onPointerDown={(event) => {
-        if (suppressSatellitePointer) return
         event.stopPropagation()
         onSelect?.(satellite.id)
       }}
@@ -647,8 +633,6 @@ function RenderedSatelliteMarker({
         showLabel={showTrajectory}
         labelOpacity={labelOpacity}
         compact={compactMarkers}
-        suppressRaycast={suppressSatellitePointer}
-        overSelectedPoint={overSelectedPoint}
         registerInteractiveTarget={registerInteractiveTarget}
       />
     </group>
@@ -664,8 +648,6 @@ function SatelliteVisualizationLayer({
   onSatelliteClick,
   labelOpacity = 1,
   compactMarkers = false,
-  suppressSatellitePointer = false,
-  overPointSatelliteIds,
 }: {
   satellites?: SatelliteMap[]
   trackedSatelliteIds?: string[]
@@ -675,10 +657,6 @@ function SatelliteVisualizationLayer({
   onSatelliteClick?: (id: string) => void
   labelOpacity?: number
   compactMarkers?: boolean
-  /** Режим клика по поверхности Земли — отключаем hit по спутникам */
-  suppressSatellitePointer?: boolean
-  /** id спутников над выбранной точкой (зона «Сейчас») — подсветка на глобусе */
-  overPointSatelliteIds?: Set<string>
 }) {
   const { camera, gl } = useThree()
   const raycaster = useMemo(() => new THREE.Raycaster(), [])
@@ -745,23 +723,9 @@ function SatelliteVisualizationLayer({
           onSelect={onSatelliteClick}
           labelOpacity={labelOpacity}
           compactMarkers={compactMarkers}
-          suppressSatellitePointer={suppressSatellitePointer}
-          overSelectedPoint={overPointSatelliteIds?.has(satellite.id) ?? false}
         />
       ))}
     </>
-  )
-}
-
-function GlobeSelectedPointMarker({ lat, lng }: { lat: number; lng: number }) {
-  const position = useMemo(() => latLngToVector3(lat, lng, 2.014), [lat, lng])
-  return (
-    <group position={position}>
-      <mesh raycast={() => null}>
-        <sphereGeometry args={[0.06, 18, 18]} />
-        <meshBasicMaterial color="#38bdf8" />
-      </mesh>
-    </group>
   )
 }
 
@@ -779,31 +743,6 @@ export function EarthGlobe3D({
     null
   )
   const [compactMarkers, setCompactMarkers] = useState(false)
-  const earthGroupRef = useRef<THREE.Group>(null)
-  const [mapPickMode, setMapPickMode] = useState(false)
-  const [selectedGlobePoint, setSelectedGlobePoint] = useState<{
-    lng: number
-    lat: number
-  } | null>(null)
-
-  const selectedPointPasses = useMemo(() => {
-    if (!selectedGlobePoint) return null
-    return classifyPointPasses(
-      selectedGlobePoint.lng,
-      selectedGlobePoint.lat,
-      satellites,
-      simulationTime ?? new Date()
-    )
-  }, [selectedGlobePoint, satellites, simulationTime])
-
-  const globeOverPointSatelliteIds = useMemo(() => {
-    if (!selectedPointPasses) return undefined
-    return new Set(selectedPointPasses.current.map((p) => p.id))
-  }, [selectedPointPasses])
-
-  useEffect(() => {
-    if (mapPickMode) setHoveredSatelliteId(null)
-  }, [mapPickMode])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -883,17 +822,14 @@ export function EarthGlobe3D({
       >
         <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-slate-950 via-slate-900/90 to-slate-950/60" />
         <Canvas
-          className={clsx(
-            "relative h-full w-full",
-            mapPickMode && "cursor-crosshair"
-          )}
+          className="relative h-full w-full"
           style={{ height: "100%" }}
           camera={{ position: [0, 0, 6.5], fov: 45 }}
           gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping }}
           onCreated={() => setIsSceneReady(true)}
         >
           <color attach="background" args={[isDark ? "#020617" : "#eef2ff"]} />
-          <fog attach="fog" args={[isDark ? "#020617" : "#eef2ff", 6, 28]} />
+          <fog attach="fog" args={[isDark ? "#020617" : "#eef2ff", 8, 55]} />
 
           <ambientLight
             intensity={0.8}
@@ -916,19 +852,8 @@ export function EarthGlobe3D({
             speed={0.3}
           />
 
-          <group ref={earthGroupRef} rotation={[0, Math.PI, 0]}>
-            <mesh
-              onPointerDown={(e) => {
-                if (!mapPickMode) return
-                e.stopPropagation()
-                const mesh = e.object as THREE.Mesh
-                const local = mesh.worldToLocal(e.point.clone())
-                const n = local.clone().normalize()
-                const { lat, lng } = vector3ToLatLngFromUnit(n)
-                setSelectedGlobePoint({ lat, lng })
-                setMapPickMode(false)
-              }}
-            >
+          <group rotation={[0, Math.PI, 0]}>
+            <mesh>
               <sphereGeometry args={[2, 128, 128]} />
               <primitive object={earthMaterial} attach="material" />
             </mesh>
@@ -942,13 +867,6 @@ export function EarthGlobe3D({
                 depthWrite={false}
               />
             </mesh>
-
-            {selectedGlobePoint && !mapPickMode && (
-              <GlobeSelectedPointMarker
-                lat={selectedGlobePoint.lat}
-                lng={selectedGlobePoint.lng}
-              />
-            )}
           </group>
 
           <lineSegments raycast={() => null}>
@@ -975,76 +893,19 @@ export function EarthGlobe3D({
             onSatelliteClick={onSatelliteClick}
             labelOpacity={globeLabelOpacity}
             compactMarkers={compactMarkers}
-            suppressSatellitePointer={mapPickMode}
-            overPointSatelliteIds={globeOverPointSatelliteIds}
           />
           <GlobeLabelOpacityController setOpacity={setGlobeLabelOpacity} />
 
           <OrbitControls
             enablePan={false}
-            enableRotate={!mapPickMode}
-            enableZoom={!mapPickMode}
             minDistance={3}
-            maxDistance={12}
-            autoRotate={!mapPickMode}
+            maxDistance={26}
+            autoRotate
             autoRotateSpeed={0.4}
             rotateSpeed={0.4}
             dampingFactor={0.1}
           />
         </Canvas>
-
-        {selectedGlobePoint && selectedPointPasses && (
-          <div className="pointer-events-none absolute right-4 bottom-4 z-20 w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-white/20 bg-slate-950/90 px-4 py-3 text-xs text-white shadow-2xl shadow-black/60 backdrop-blur">
-            <div className="flex items-center gap-2 text-sm font-semibold text-white">
-              <MapPin className="size-4 shrink-0 text-sky-400" aria-hidden />
-              Точка на глобусе
-            </div>
-            <div className="mt-1 text-[11px] text-white/70">
-              {selectedGlobePoint.lat.toFixed(2)}°,{" "}
-              {selectedGlobePoint.lng.toFixed(2)}° · зона пролёта ±{PASS_NEAR_POINT_KM}{" "}
-              км
-            </div>
-            <div className="mt-1 text-[10px] text-white/50">
-              Учтено спутников:{" "}
-              {selectedPointPasses.current.length +
-                selectedPointPasses.recent.length +
-                selectedPointPasses.upcoming.length}
-            </div>
-            <PassBucketsGrid passes={selectedPointPasses} />
-          </div>
-        )}
-
-        <div className="pointer-events-none absolute bottom-4 left-4 z-20">
-          <div className="pointer-events-auto flex max-w-[min(14rem,42vw)] flex-col gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={mapPickMode ? "default" : "secondary"}
-              className="gap-2 shadow-lg"
-              onClick={() => setMapPickMode((v) => !v)}
-            >
-              <MapPin className="size-3.5 shrink-0" aria-hidden />
-              {mapPickMode ? "Отмена" : "Точка на глобусе"}
-            </Button>
-            {mapPickMode && (
-              <p className="rounded-lg border border-white/15 bg-slate-950/80 px-2 py-1.5 text-[10px] leading-snug text-white/80 backdrop-blur">
-                Кликните по поверхности Земли, чтобы выбрать точку.
-              </p>
-            )}
-            {selectedGlobePoint && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="gap-2 border-white/30 bg-slate-950/70 text-white shadow-lg backdrop-blur"
-                onClick={() => setSelectedGlobePoint(null)}
-              >
-                <MapPin className="size-3.5 shrink-0 opacity-70" aria-hidden />
-                Сбросить точку
-              </Button>
-            )}
-          </div>
-        </div>
       </div>
     </div>
   )
