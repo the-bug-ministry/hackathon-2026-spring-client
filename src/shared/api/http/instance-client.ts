@@ -44,9 +44,7 @@ class ApiClient {
     const query =
       params &&
       Object.fromEntries(
-        Object.entries(params).filter(
-          ([, v]) => v !== undefined && v !== "",
-        ),
+        Object.entries(params).filter(([, v]) => v !== undefined && v !== "")
       )
 
     return {

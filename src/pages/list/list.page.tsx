@@ -4,7 +4,7 @@ import type { Column, ColumnDef } from "@tanstack/react-table"
 import {
   Calendar,
   CheckCircle2,
-  MoreHorizontal,
+  Loader2Icon,
   Orbit,
   Radio,
   Satellite as SatelliteIcon,
@@ -12,63 +12,35 @@ import {
   ShieldCheck,
   XCircle,
 } from "lucide-react"
+import { useMemo } from "react"
 
-import { satellitesMock } from "@/entities/satellite/model/mock/satellites-mock"
+import { useSatelliteCatalog } from "@/pages/dashboard/model/satellite-catalog-context"
 import { DataTable } from "@/shared/components/data-table/data-table"
 import { DataTableColumnHeader } from "@/shared/components/data-table/data-table-column-header"
 import { DataTableToolbar } from "@/shared/components/data-table/data-table-toolbar"
 import { Badge } from "@/shared/components/ui/badge"
-import { Button } from "@/shared/components/ui/button"
-import { Checkbox } from "@/shared/components/ui/checkbox"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/shared/components/ui/dropdown-menu"
 import { useDataTable } from "@/shared/hooks/use-data-table"
-import type { Satellite } from "@/entities/satellite/model"
-import { useMemo } from "react"
+import type { SatelliteMap } from "@/entities/satellite/model"
 
 export function ListPage() {
-  const data = useMemo(() => satellitesMock as Satellite[], [])
-  // query to api
+  const {
+    catalog: data,
+    isLoading,
+    isError,
+    isMockSource,
+    satelliteDataLayer,
+  } = useSatelliteCatalog()
 
-  const columns = useMemo<ColumnDef<Satellite>[]>(
+  const columns = useMemo<ColumnDef<SatelliteMap>[]>(
     () => [
-      {
-        id: "select",
-        header: ({ table }) => (
-          <Checkbox
-            checked={
-              table.getIsAllPageRowsSelected() ||
-              (table.getIsSomePageRowsSelected() && "indeterminate")
-            }
-            onCheckedChange={(value) =>
-              table.toggleAllPageRowsSelected(!!value)
-            }
-            aria-label="Выбрать все"
-          />
-        ),
-        cell: ({ row }) => (
-          <Checkbox
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(!!value)}
-            aria-label="Выбрать строку"
-          />
-        ),
-        size: 32,
-        enableSorting: false,
-        enableHiding: false,
-      },
       {
         id: "name",
         accessorKey: "name",
-        header: ({ column }: { column: Column<Satellite, unknown> }) => (
+        header: ({ column }: { column: Column<SatelliteMap, unknown> }) => (
           <DataTableColumnHeader column={column} label="Название" />
         ),
         cell: ({ cell }) => {
-          const value = cell.getValue<Satellite["name"]>()
+          const value = cell.getValue<SatelliteMap["name"]>()
 
           return (
             <div className="flex items-center gap-2 font-medium text-slate-900 dark:text-white">
@@ -88,11 +60,11 @@ export function ListPage() {
       {
         id: "desc",
         accessorKey: "desc",
-        header: ({ column }: { column: Column<Satellite, unknown> }) => (
+        header: ({ column }: { column: Column<SatelliteMap, unknown> }) => (
           <DataTableColumnHeader column={column} label="Описание" />
         ),
         cell: ({ cell }) => {
-          const value = cell.getValue<Satellite["desc"]>()
+          const value = cell.getValue<SatelliteMap["desc"]>()
 
           return (
             <div className="max-w-[280px] truncate text-slate-600 dark:text-slate-300">
@@ -104,11 +76,11 @@ export function ListPage() {
       {
         id: "type",
         accessorKey: "type",
-        header: ({ column }: { column: Column<Satellite, unknown> }) => (
+        header: ({ column }: { column: Column<SatelliteMap, unknown> }) => (
           <DataTableColumnHeader column={column} label="Орбита" />
         ),
         cell: ({ cell }) => {
-          const value = cell.getValue<Satellite["type"]>()
+          const value = cell.getValue<SatelliteMap["type"]>()
 
           return (
             <Badge variant="outline" className="gap-1 rounded-full px-3">
@@ -132,11 +104,11 @@ export function ListPage() {
       {
         id: "status",
         accessorKey: "status",
-        header: ({ column }: { column: Column<Satellite, unknown> }) => (
+        header: ({ column }: { column: Column<SatelliteMap, unknown> }) => (
           <DataTableColumnHeader column={column} label="Статус" />
         ),
         cell: ({ cell }) => {
-          const value = cell.getValue<Satellite["status"]>()
+          const value = cell.getValue<SatelliteMap["status"]>()
           const isActive =
             value.toLowerCase() === "active" ||
             value.toLowerCase() === "активный" ||
@@ -167,11 +139,11 @@ export function ListPage() {
       {
         id: "launchDate",
         accessorKey: "launchDate",
-        header: ({ column }: { column: Column<Satellite, unknown> }) => (
+        header: ({ column }: { column: Column<SatelliteMap, unknown> }) => (
           <DataTableColumnHeader column={column} label="Дата запуска" />
         ),
         cell: ({ cell }) => {
-          const value = cell.getValue<Satellite["launchDate"]>()
+          const value = cell.getValue<SatelliteMap["launchDate"]>()
 
           return (
             <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200">
@@ -184,11 +156,11 @@ export function ListPage() {
       {
         id: "operator",
         accessorKey: "operator",
-        header: ({ column }: { column: Column<Satellite, unknown> }) => (
+        header: ({ column }: { column: Column<SatelliteMap, unknown> }) => (
           <DataTableColumnHeader column={column} label="Оператор" />
         ),
         cell: ({ cell }) => {
-          const value = cell.getValue<Satellite["operator"]>()
+          const value = cell.getValue<SatelliteMap["operator"]>()
 
           return (
             <div className="flex items-center gap-2">
@@ -201,11 +173,11 @@ export function ListPage() {
       {
         id: "country",
         accessorKey: "country",
-        header: ({ column }: { column: Column<Satellite, unknown> }) => (
+        header: ({ column }: { column: Column<SatelliteMap, unknown> }) => (
           <DataTableColumnHeader column={column} label="Страна" />
         ),
         cell: ({ cell }) => {
-          const value = cell.getValue<Satellite["country"]>()
+          const value = cell.getValue<SatelliteMap["country"]>()
 
           return (
             <div className="flex items-center gap-2">
@@ -214,33 +186,6 @@ export function ListPage() {
             </div>
           )
         },
-      },
-      {
-        id: "actions",
-        cell: ({ row }) => {
-          const satellite = row.original
-
-          return (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                  <span className="sr-only">Открыть меню</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>Открыть {satellite.name}</DropdownMenuItem>
-                <DropdownMenuItem>Редактировать</DropdownMenuItem>
-                <DropdownMenuItem variant="destructive">
-                  Удалить
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )
-        },
-        size: 40,
-        enableSorting: false,
-        enableHiding: false,
       },
     ],
     []
@@ -252,25 +197,49 @@ export function ListPage() {
     pageCount: 1,
     initialState: {
       sorting: [{ id: "launchDate", desc: true }],
-      columnPinning: { right: ["actions"] },
     },
     getRowId: (row) => row.id,
   })
 
+  const subtitle = isMockSource
+    ? "Локальные мок-данные (режим mock)."
+    : satelliteDataLayer === "user"
+      ? "Слой «Мои данные»"
+      : "Слой «Демо»"
+
   return (
     <div className="flex h-full w-full flex-col gap-4 p-3 sm:gap-6 sm:p-6 md:p-10">
-      <div className="rounded-2xl border border-slate-200 bg-white/85 p-4 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40 sm:sticky sm:top-2 sm:z-10 sm:p-6">
-        <h1 className="mb-2 text-xl font-bold text-slate-900 dark:text-white sm:text-2xl">
+      <div className="rounded-2xl border border-slate-200 bg-white/85 p-4 shadow-lg shadow-slate-200/40 backdrop-blur sm:sticky sm:top-2 sm:z-10 sm:p-6 dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40">
+        <h1 className="mb-2 text-xl font-bold text-slate-900 sm:text-2xl dark:text-white">
           База данных спутников
         </h1>
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          Полный список аппаратов в системе: {data.length}
+          Справочник для просмотра.{" "}
+          {isLoading ? (
+            <span className="inline-flex items-center gap-1">
+              <Loader2Icon className="size-3.5 animate-spin" />
+              Загрузка…
+            </span>
+          ) : (
+            <>
+              Записей: {data.length}. {subtitle}
+            </>
+          )}
         </p>
       </div>
 
+      {isError && (
+        <div className="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+          Не удалось загрузить каталог. Проверьте сеть и попробуйте позже.
+        </div>
+      )}
+
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/85 shadow-lg shadow-slate-200/40 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 dark:shadow-slate-950/40">
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-4 md:p-6">
-          <DataTable table={table} className="min-h-0 flex-1 text-xs sm:text-sm">
+          <DataTable
+            table={table}
+            className="min-h-0 flex-1 text-xs sm:text-sm"
+          >
             <DataTableToolbar table={table} />
           </DataTable>
         </div>

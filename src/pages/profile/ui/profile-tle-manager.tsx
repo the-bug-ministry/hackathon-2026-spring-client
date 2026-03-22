@@ -1,4 +1,5 @@
-import { useRef } from "react"
+import { useRef, useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/shared/components/ui/button"
 import {
   Card,
@@ -9,45 +10,63 @@ import {
 } from "@/shared/components/ui/card"
 import { Separator } from "@/shared/components/ui/separator"
 import { Badge } from "@/shared/components/ui/badge"
+import { Input } from "@/shared/components/ui/input"
 import { cn } from "@/shared/lib/utils"
 import { isTxtFile } from "@/shared/lib/is-txt-file"
-import { Trash2Icon, UploadIcon } from "lucide-react"
+import {
+  Loader2Icon,
+  PencilIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+  UploadIcon,
+} from "lucide-react"
 import { toast } from "sonner"
 
-import { useTleDumps } from "@/entities/satellite/lib/use-tle-dumps"
-import type { TleDump } from "@/entities/satellite/lib/use-tle-dumps"
+import { useAuth } from "@/entities/auth/lib/use-auth"
+import {
+  fileKeys,
+  useActivateFileMutation,
+  useDeleteFileMutation,
+  useFilesQuery,
+  useUpdateFileNameMutation,
+  type FileItem,
+} from "@/entities/file/lib"
+import { satelliteKeys } from "@/entities/satellite/api/contracts/satellite.keys"
 import { useTleUpload } from "@/entities/satellite/lib"
 
-const formatDateTime = (value: string) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return "н/д"
-  }
-
-  return new Intl.DateTimeFormat("ru-RU", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(date)
-}
-
-const formatBytes = (bytes: number) => {
-  if (bytes < 1024) {
-    return `${bytes} Б`
-  }
-
-  const kilobytes = bytes / 1024
-  if (kilobytes < 1024) {
-    return `${kilobytes.toFixed(1)} КБ`
-  }
-
-  return `${(kilobytes / 1024).toFixed(2)} МБ`
-}
-
 export function ProfileTleManager({ className }: { className?: string }) {
-  const { dumps, activeDump, setActive, removeDump } = useTleDumps()
+  const queryClient = useQueryClient()
+  const { status: authStatus } = useAuth()
+  const isAuthed = authStatus === "AUTHENTICATED"
+
+  const serverInputRef = useRef<HTMLInputElement | null>(null)
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [renameDraft, setRenameDraft] = useState("")
+
+  const {
+    data: filesPayload,
+    isPending: isListLoading,
+    isFetching: isListFetching,
+    isError: isListError,
+    refetch,
+  } = useFilesQuery({ enabled: isAuthed })
+
   const { mutate: uploadToServer, isPending: isServerUploading } =
     useTleUpload()
-  const serverInputRef = useRef<HTMLInputElement | null>(null)
+  const { mutate: activateFile, isPending: isActivating } =
+    useActivateFileMutation()
+  const { mutate: deleteFile, isPending: isDeleting } = useDeleteFileMutation()
+  const { mutate: renameFile, isPending: isRenaming } =
+    useUpdateFileNameMutation()
+
+  const files = filesPayload?.files ?? []
+  const activeFile = files.find((f) => f.isActive) ?? null
+  const busyGlobal = isActivating || isDeleting || isRenaming
+
+  const invalidateFileList = () => {
+    void queryClient.invalidateQueries({ queryKey: fileKeys.list() })
+    void queryClient.invalidateQueries({ queryKey: satelliteKeys.root })
+  }
 
   const handleServerFile = (file: File | undefined) => {
     if (!file) return
@@ -59,68 +78,184 @@ export function ProfileTleManager({ className }: { className?: string }) {
       { file },
       {
         onSuccess: () => {
-          toast.success("Файл TLE успешно загружен на сервер")
+          toast.success("Файл TLE успешно загружен")
+          invalidateFileList()
         },
         onError: () => {
-          toast.error("Не удалось загрузить файл на сервер")
+          toast.error("Не удалось загрузить файл")
         },
       }
     )
   }
 
-  const renderItem = (dump: TleDump) => {
-    const isActive = dump.isActive
+  const handleActivate = (id: string) => {
+    activateFile(
+      { id },
+      {
+        onSuccess: () => {
+          toast.success("Активный файл обновлён")
+          invalidateFileList()
+        },
+        onError: () => {
+          toast.error("Не удалось активировать файл")
+        },
+      }
+    )
+  }
+
+  const handleDeleteRequest = (file: FileItem) => {
+    const ok = window.confirm(
+      `Удалить файл «${file.name}»? Действие нельзя отменить.`
+    )
+    if (!ok) return
+
+    deleteFile(
+      { id: file.id },
+      {
+        onSuccess: () => {
+          toast.success("Файл удалён")
+          invalidateFileList()
+        },
+        onError: () => {
+          toast.error("Не удалось удалить файл")
+        },
+      }
+    )
+  }
+
+  const cancelRename = () => {
+    setRenamingId(null)
+    setRenameDraft("")
+  }
+
+  const saveRename = (id: string) => {
+    const trimmed = renameDraft.trim()
+    if (!trimmed) {
+      toast.error("Введите имя файла")
+      return
+    }
+    renameFile(
+      { id, name: trimmed },
+      {
+        onSuccess: () => {
+          toast.success("Название обновлено")
+          cancelRename()
+          invalidateFileList()
+        },
+        onError: () => {
+          toast.error("Не удалось переименовать файл")
+        },
+      }
+    )
+  }
+
+  const renderItem = (file: FileItem) => {
+    const isActive = file.isActive
+    const isEditing = renamingId === file.id
 
     return (
       <div
-        key={dump.id}
+        key={file.id}
         className={cn(
-          "relative overflow-hidden rounded-2xl border bg-background/70 transition",
+          "flex flex-col gap-3 rounded-2xl border bg-background/70 p-4 transition sm:flex-row sm:items-center sm:justify-between",
           isActive
-            ? "border-emerald-400/75 bg-emerald-500/5 shadow-lg shadow-emerald-500/20"
-            : "border-border/70 hover:border-primary/60"
+            ? "border-emerald-400/75 bg-emerald-500/5 shadow-md shadow-emerald-500/15"
+            : "border-border/70"
         )}
       >
-        <div
-          role="button"
-          tabIndex={0}
-          className="space-y-2 p-4 pr-10"
-          onClick={() => setActive(dump.id)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault()
-              setActive(dump.id)
-            }
-          }}
-        >
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                {dump.name}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {formatDateTime(dump.createdAt)} · {formatBytes(dump.size)}
-              </p>
-            </div>
-            {isActive && (
-              <Badge variant="secondary" className="text-[11px]">
-                Активный
-              </Badge>
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            {isEditing ? (
+              <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+                <Input
+                  value={renameDraft}
+                  onChange={(e) => setRenameDraft(e.target.value)}
+                  className="h-9 max-w-md text-sm"
+                  disabled={isRenaming}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveRename(file.id)
+                    if (e.key === "Escape") cancelRename()
+                  }}
+                />
+                <div className="flex shrink-0 gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={isRenaming}
+                    onClick={() => saveRename(file.id)}
+                  >
+                    Сохранить
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={isRenaming}
+                    onClick={cancelRename}
+                  >
+                    Отмена
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="truncate text-sm font-semibold text-foreground">
+                  {file.name}
+                </p>
+                {isActive && (
+                  <Badge variant="secondary" className="text-[11px]">
+                    Активный
+                  </Badge>
+                )}
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
+                  disabled={busyGlobal}
+                  onClick={() => {
+                    setRenamingId(file.id)
+                    setRenameDraft(file.name)
+                  }}
+                  aria-label={`Переименовать ${file.name}`}
+                >
+                  <PencilIcon className="size-3.5" />
+                </Button>
+              </>
             )}
           </div>
+          <p className="font-mono text-[10px] leading-snug break-all text-muted-foreground sm:text-[11px]">
+            {file.id}
+          </p>
         </div>
 
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation()
-            removeDump(dump.id)
-          }}
-          className="absolute top-3 right-3 rounded-full border border-border/70 bg-background/90 p-1 text-muted-foreground transition hover:border-destructive hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          aria-label="Удалить дамп"
-        >
-          <Trash2Icon className="size-3" />
-        </button>
+        <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+          {!isActive && !isEditing && (
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={busyGlobal}
+              onClick={() => handleActivate(file.id)}
+            >
+              Сделать активным
+            </Button>
+          )}
+          {!isEditing && (
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="text-muted-foreground hover:border-destructive hover:text-destructive"
+              disabled={busyGlobal}
+              onClick={() => handleDeleteRequest(file)}
+              aria-label={`Удалить ${file.name}`}
+            >
+              <Trash2Icon className="size-4" />
+            </Button>
+          )}
+        </div>
       </div>
     )
   }
@@ -128,15 +263,18 @@ export function ProfileTleManager({ className }: { className?: string }) {
   return (
     <Card className={cn("rounded-2xl", className)}>
       <CardHeader>
-        <CardTitle>Список TLE дампов</CardTitle>
+        <CardTitle>Список загруженных файлов TLE</CardTitle>
         <CardDescription className="space-y-1 text-xs">
           <span>
-            Храни актуальные дампы и выбирай нужный для симуляции спутников.
+            Управляй дампами TLE на сервере: один файл может быть активным — по
+            нему строятся пользовательские спутники и координаты.
           </span>
-          <span className="text-muted-foreground">
-            {activeDump
-              ? `Активный: ${activeDump.name}`
-              : "Активный TLE не выбран"}
+          <span className="block text-muted-foreground">
+            {activeFile ? (
+              <>Сейчас активен: {activeFile.name}</>
+            ) : (
+              <>Активный файл не выбран — нажми кнопку «Сделать активным».</>
+            )}
           </span>
         </CardDescription>
       </CardHeader>
@@ -145,10 +283,10 @@ export function ProfileTleManager({ className }: { className?: string }) {
         <div className="space-y-3">
           <div>
             <p className="text-sm font-medium text-foreground">
-              Загрузка на сервер
+              Загрузить новый файл
             </p>
             <p className="text-xs text-muted-foreground">
-              Отправка TLE для отслеживания спутников в системе. Только .txt.
+              Только .txt. После загрузки файл появится в списке ниже.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -157,7 +295,7 @@ export function ProfileTleManager({ className }: { className?: string }) {
               type="file"
               className="hidden"
               accept=".txt,text/plain"
-              disabled={isServerUploading}
+              disabled={isServerUploading || !isAuthed}
               onChange={(e) => {
                 handleServerFile(e.target.files?.[0])
                 e.target.value = ""
@@ -167,7 +305,7 @@ export function ProfileTleManager({ className }: { className?: string }) {
               type="button"
               variant="outline"
               className="gap-2"
-              disabled={isServerUploading}
+              disabled={isServerUploading || !isAuthed}
               onClick={() => serverInputRef.current?.click()}
             >
               <UploadIcon className="size-4" />
@@ -178,14 +316,62 @@ export function ProfileTleManager({ className }: { className?: string }) {
 
         <Separator />
 
-        {dumps.length === 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-medium text-foreground">
+            Файлы на сервере
+            {!isListLoading && isAuthed && (
+              <span className="ml-2 font-normal text-muted-foreground">
+                ({files.length})
+              </span>
+            )}
+          </p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-muted-foreground"
+            disabled={!isAuthed || isListLoading || isListFetching}
+            onClick={() => void refetch()}
+          >
+            {isListFetching ? (
+              <Loader2Icon className="size-4 animate-spin" />
+            ) : (
+              <RefreshCwIcon className="size-4" />
+            )}
+            Обновить
+          </Button>
+        </div>
+
+        {!isAuthed ? (
           <p className="text-sm text-muted-foreground">
-            Пока нет загруженных дампов. Загрузи первый файл, чтобы начать.
-            (!!!вывести с бэка)
+            Войди в аккаунт, чтобы видеть список файлов.
+          </p>
+        ) : isListLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2Icon className="size-4 animate-spin" />
+            Загрузка списка…
+          </div>
+        ) : isListError ? (
+          <div className="space-y-2">
+            <p className="text-sm text-destructive">
+              Не удалось загрузить список файлов.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void refetch()}
+            >
+              Повторить
+            </Button>
+          </div>
+        ) : files.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Пока нет файлов. Загрузи первый .txt выше — он появится здесь.
           </p>
         ) : (
           <div className="space-y-3">
-            {dumps.map((dump) => renderItem(dump))}
+            {files.map((file) => renderItem(file))}
           </div>
         )}
       </CardContent>

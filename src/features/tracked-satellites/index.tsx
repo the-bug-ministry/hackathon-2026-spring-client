@@ -1,5 +1,8 @@
 import { SatelliteMetaCard } from "@/entities/satellite/ui"
-import { useSatelliteDemoByIdQuery } from "@/entities/satellite/lib"
+import {
+  useSatelliteDemoByIdQuery,
+  useSatelliteUserByIdQuery,
+} from "@/entities/satellite/lib"
 import type { SatelliteMap } from "@/entities/satellite/model"
 import { useSatelliteCatalog } from "@/pages/dashboard/model/satellite-catalog-context"
 import { isSatelliteMockMode } from "@/shared/config/satellite-data-source"
@@ -23,7 +26,7 @@ export const TrackedSatellites = ({
   simulationTime: Date
   variant?: "desktop" | "mobile"
 }) => {
-  const { catalog } = useSatelliteCatalog()
+  const { catalog, satelliteDataLayer } = useSatelliteCatalog()
 
   const selectedIds = useMemo(() => {
     return selectedSatellitesStr
@@ -32,25 +35,36 @@ export const TrackedSatellites = ({
   }, [selectedSatellitesStr])
 
   const isMock = isSatelliteMockMode()
-  const detailId =
-    !isMock && selectedIds.length === 1 ? selectedIds[0] : undefined
-  const detailQuery = useSatelliteDemoByIdQuery(detailId)
+  const detailIdDemo =
+    !isMock && satelliteDataLayer === "demo" && selectedIds.length === 1
+      ? selectedIds[0]
+      : undefined
+  const detailIdUser =
+    !isMock && satelliteDataLayer === "user" && selectedIds.length === 1
+      ? selectedIds[0]
+      : undefined
+
+  const demoDetailQuery = useSatelliteDemoByIdQuery(detailIdDemo)
+  const userDetailQuery = useSatelliteUserByIdQuery(detailIdUser)
+
+  const detailQueryData =
+    satelliteDataLayer === "user" ? userDetailQuery.data : demoDetailQuery.data
 
   const selectedSatellites = useMemo(() => {
     return catalog.filter((sat) => selectedIds.includes(sat.id))
   }, [catalog, selectedIds])
 
-  /** Каталог + при одном выборе — ответ GET /satellite/demo/:id (после клика) */
+  /** Каталог + при одном выборе — GET /satellite/demo/:id или /satellite/user/:id */
   const resolvedSatellites = useMemo(() => {
     const map = new Map<string, SatelliteMap>()
-    const detail = detailQuery.data?.data
+    const detail = detailQueryData?.data
     for (const sat of selectedSatellites) {
       const resolved =
         selectedIds.length === 1 && detail?.id === sat.id ? detail : sat
       map.set(sat.id, resolved)
     }
     return map
-  }, [selectedSatellites, selectedIds.length, detailQuery.data])
+  }, [selectedSatellites, selectedIds.length, detailQueryData])
 
   const selectedPositions = useMemo(() => {
     const map = new Map<string, OrbitalPosition>()

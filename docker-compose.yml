@@ -25,6 +25,6 @@ services:
       args:
         VITE_PUBLIC_ENV: prod
     env_file:
-      - .env.prod
+      - .env.production
     ports:
       - "4173:80"

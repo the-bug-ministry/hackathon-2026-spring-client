@@ -26,7 +26,10 @@ type HeaderUserProfileProps = {
   variant?: "full" | "compact"
 }
 
-function HeaderUserProfile({ isActive, variant = "full" }: HeaderUserProfileProps) {
+function HeaderUserProfile({
+  isActive,
+  variant = "full",
+}: HeaderUserProfileProps) {
   const { account, status } = useAuth()
 
   if (status === "PENDING") {
@@ -76,15 +79,15 @@ function HeaderUserProfile({ isActive, variant = "full" }: HeaderUserProfileProp
     "flex max-w-[260px] min-w-0 items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar-accent/35 px-2 py-1 transition-colors",
     "text-sidebar-foreground",
     !isActive &&
-    "group hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar focus-visible:outline-none",
+      "group hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar focus-visible:outline-none",
     isActive && "cursor-default border-sidebar-border/80 bg-sidebar-accent/50"
   )
 
   if (variant === "compact") {
     const buttonClass = cn(
-      "inline-flex h-10 w-10 items-center justify-center rounded-full border border-sidebar-border/80 bg-sidebar-accent/30 text-sidebar-foreground transition-colors shadow-sm",
+      "inline-flex h-10 w-10 items-center justify-center rounded-full border border-sidebar-border/80 bg-sidebar-accent/30 text-sidebar-foreground shadow-sm transition-colors",
       !isActive &&
-      "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar focus-visible:outline-none",
+        "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar focus-visible:outline-none",
       isActive && "cursor-default border-sidebar-border/70 bg-sidebar-accent/60"
     )
 
@@ -136,7 +139,7 @@ function HeaderUserProfile({ isActive, variant = "full" }: HeaderUserProfileProp
           className={cn(
             "mt-0.5 block text-[11px] font-medium text-sidebar-foreground/80",
             !isActive &&
-            "underline-offset-2 group-hover:text-sidebar-accent-foreground group-hover:underline"
+              "underline-offset-2 group-hover:text-sidebar-accent-foreground group-hover:underline"
           )}
         >
           Профиль
@@ -212,16 +215,22 @@ export const AppHeader = () => {
     "focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar focus-visible:outline-none"
   )
   return (
-    <header className="sticky top-0 z-30 flex w-full items-center border-b border-sidebar-border/60 bg-sidebar/95 px-2.5 py-2 text-sidebar-foreground backdrop-blur-md shadow-sm">
+    <header className="sticky top-0 z-30 flex w-full items-center border-b border-sidebar-border/60 bg-sidebar/95 px-2.5 py-2 text-sidebar-foreground shadow-sm backdrop-blur-md">
       <div className="flex w-full items-center gap-2 sm:gap-4">
-        <div className="flex items-center gap-2 min-w-0">
-          <SidebarTrigger className="h-9 w-9 shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground rounded-lg" />
-          <LogoIcon size="sm" className="shrink-0 text-sidebar-foreground block sm:hidden" />
-          <LogoIcon size="md" className="shrink-0 text-sidebar-foreground hidden sm:block" />
+        <div className="flex min-w-0 items-center gap-2">
+          <SidebarTrigger className="h-9 w-9 shrink-0 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+          <LogoIcon
+            size="sm"
+            className="block shrink-0 text-sidebar-foreground sm:hidden"
+          />
+          <LogoIcon
+            size="md"
+            className="hidden shrink-0 text-sidebar-foreground sm:block"
+          />
         </div>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex justify-end items-center gap-2 overflow-x-auto pb-1 pr-1 sm:gap-3 sm:pb-0 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-end gap-2 overflow-x-auto pr-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:gap-3 sm:pb-0 [&::-webkit-scrollbar]:hidden">
             {isMapActive ? (
               <span
                 className={cn(

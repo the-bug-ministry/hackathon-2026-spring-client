@@ -22,8 +22,20 @@ import type { Topology, GeometryCollection } from "topojson-specification"
 import { cn } from "@/shared/lib/utils"
 import { propagateSatellitePosition } from "@/entities/satellite/lib/propagation"
 import type { OrbitalPosition } from "@/entities/satellite/lib/propagation"
+import { footprintRingLngLat } from "@/entities/satellite/lib/coverage-footprint"
 import { COUNTRY_NAME_RU_BY_EN } from "@/shared/config/country-names-ru"
 import { OrbitPreloader } from "@/shared/components/ui/orbit-preloader"
+import { Button } from "@/shared/components/ui/button"
+import { PassBucketsGrid } from "@/shared/components/pass-buckets-grid"
+import {
+  classifyPointPasses,
+  PASS_NEAR_POINT_KM,
+  PASS_SAMPLE_STEP_SEC,
+  RECENT_WINDOW_MIN,
+  UPCOMING_WINDOW_MIN,
+  type PassBuckets,
+} from "@/entities/satellite/lib/satellite-point-passes"
+import { MapPin } from "lucide-react"
 
 /** Порог «базового» масштаба для ограничения панорамы. */
 const BASE_ZOOM_EPS = 1e-4
@@ -78,10 +90,11 @@ type MapPalette = {
   countryFill: string
   countryStroke: string
   track: string
-  satelliteHalo: string
   satelliteCore: string
   satelliteStroke: string
   satelliteLabel: string
+  coverageFill: string
+  coverageStroke: string
 }
 
 const MAP_PALETTES: Record<MapTheme, MapPalette> = {
@@ -94,10 +107,11 @@ const MAP_PALETTES: Record<MapTheme, MapPalette> = {
     countryFill: "#12213d",
     countryStroke: "rgba(148,163,184,0.18)",
     track: "rgba(96,165,250,0.85)",
-    satelliteHalo: "rgba(34,197,94,0.14)",
     satelliteCore: "#10b981",
     satelliteStroke: "#ffffff",
     satelliteLabel: "#ffffff",
+    coverageFill: "rgba(52, 211, 153, 0.14)",
+    coverageStroke: "rgba(52, 211, 153, 0.55)",
   },
   light: {
     oceanGlowStart: "#e0f2fe",
@@ -108,10 +122,11 @@ const MAP_PALETTES: Record<MapTheme, MapPalette> = {
     countryFill: "#e2e8f0",
     countryStroke: "rgba(15,23,42,0.2)",
     track: "rgba(14,116,144,0.85)",
-    satelliteHalo: "rgba(14,116,144,0.18)",
     satelliteCore: "#0f172a",
     satelliteStroke: "#0f172a",
     satelliteLabel: "#0f172a",
+    coverageFill: "rgba(13, 148, 136, 0.12)",
+    coverageStroke: "rgba(13, 148, 136, 0.5)",
   },
 }
 
@@ -123,25 +138,8 @@ type HoveredCountry = {
   center: [number, number] | null
 }
 
-type CountryPassItem = {
-  id: string
-  name: string
-  type: string
-  /** Смещение в минутах относительно now: <0 — прошло, >0 — впереди. */
-  offsetMinutes?: number
-}
-
-type CountryPasses = {
-  current: CountryPassItem[]
-  recent: CountryPassItem[]
-  upcoming: CountryPassItem[]
-}
-
 const MIN_LABEL_OPACITY = 0.35
 const MAX_LABEL_OPACITY = 1
-const RECENT_WINDOW_MIN = 20
-const UPCOMING_WINDOW_MIN = 20
-const PASS_SAMPLE_STEP_SEC = 60
 const COUNTRY_DISPLAY_NAMES_RU =
   typeof Intl !== "undefined" && typeof Intl.DisplayNames !== "undefined"
     ? new Intl.DisplayNames(["ru"], { type: "region" })
@@ -298,14 +296,20 @@ function findPassOffsetMinutes(
 ) {
   const step = PASS_SAMPLE_STEP_SEC * 1000
   const limitMs =
-    (direction === "past" ? -RECENT_WINDOW_MIN : UPCOMING_WINDOW_MIN) * 60 * 1000
+    (direction === "past" ? -RECENT_WINDOW_MIN : UPCOMING_WINDOW_MIN) *
+    60 *
+    1000
   const start = direction === "past" ? -step : step
   const condition =
     direction === "past"
       ? (offset: number) => offset >= limitMs
       : (offset: number) => offset <= limitMs
 
-  for (let offset = start; condition(offset); offset += direction === "past" ? -step : step) {
+  for (
+    let offset = start;
+    condition(offset);
+    offset += direction === "past" ? -step : step
+  ) {
     const date = new Date(referenceTime.getTime() + offset)
     const pos = propagateSatellitePosition(satellite, date)
     if (isOverCountry(feature, pos)) {
@@ -320,8 +324,8 @@ function classifyCountryPasses(
   feature: GeoJSON.Feature,
   satellites: SatelliteMap[],
   referenceTime: Date
-): CountryPasses {
-  const result: CountryPasses = {
+): PassBuckets {
+  const result: PassBuckets = {
     current: [],
     recent: [],
     upcoming: [],
@@ -415,6 +419,12 @@ export function EarthMap2D({
   const [hoveredSatelliteId, setHoveredSatelliteId] = useState<string | null>(
     null
   )
+  const [mapPickMode, setMapPickMode] = useState(false)
+  const [selectedMapPoint, setSelectedMapPoint] = useState<{
+    lng: number
+    lat: number
+  } | null>(null)
+
   const now = simulationTime ?? new Date()
   const renderedSatellites = useRenderedSatellites(satellites, now)
   const trackedIds = useMemo(
@@ -425,6 +435,16 @@ export function EarthMap2D({
     if (!hoveredCountry) return null
     return classifyCountryPasses(hoveredCountry.feature, satellites, now)
   }, [hoveredCountry, satellites, now])
+
+  const selectedPointPasses = useMemo(() => {
+    if (!selectedMapPoint) return null
+    return classifyPointPasses(
+      selectedMapPoint.lng,
+      selectedMapPoint.lat,
+      satellites,
+      now
+    )
+  }, [selectedMapPoint, satellites, now])
 
   useEffect(() => {
     if (!wrapperRef.current) return
@@ -530,12 +550,15 @@ export function EarthMap2D({
             }
           : null
       })
-      .filter((v): v is { id: string; name: string; point: [number, number] } => Boolean(v))
+      .filter((v): v is { id: string; name: string; point: [number, number] } =>
+        Boolean(v)
+      )
   }, [hoveredCountry, renderedSatellites, projection])
 
   const path = useMemo(() => geoPath(projection), [projection])
   const graticule = useMemo(() => geoGraticule10(), [])
   const palette = MAP_PALETTES[mapTheme]
+  const markerScale = size.width < 480 ? 0.55 : size.width < 768 ? 0.78 : 1
   const wrapperClassName = cn(
     className ?? "h-full w-full rounded-2xl",
     mapTheme === "dark" ? "bg-slate-950" : "bg-slate-50",
@@ -573,6 +596,22 @@ export function EarthMap2D({
       maxTy: Math.max(0, h / 2),
     }
   }, [path])
+
+  const handleMapPickClick = (event: MouseEvent<SVGRectElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    const svg = svgRef.current
+    if (!svg) return
+    const bounds = svg.getBoundingClientRect()
+    const px = event.clientX - bounds.left
+    const py = event.clientY - bounds.top
+    const [x, y] = mapTransformRef.current.invert([px, py])
+    const inv = projection.invert?.([x, y])
+    if (!inv) return
+    const [lng, lat] = inv
+    setSelectedMapPoint({ lng, lat })
+    setMapPickMode(false)
+  }
 
   useLayoutEffect(() => {
     const svgEl = svgRef.current
@@ -651,254 +690,321 @@ export function EarthMap2D({
           height={size.height}
           className="block max-h-full max-w-full cursor-move touch-none select-none"
         >
-        <defs>
-          <radialGradient id="oceanGlow" cx="50%" cy="50%" r="80%">
-            <stop offset="0%" stopColor={palette.oceanGlowStart} />
-            <stop offset="100%" stopColor={palette.oceanGlowEnd} />
-          </radialGradient>
-        </defs>
+          <defs>
+            <radialGradient id="oceanGlow" cx="50%" cy="50%" r="80%">
+              <stop offset="0%" stopColor={palette.oceanGlowStart} />
+              <stop offset="100%" stopColor={palette.oceanGlowEnd} />
+            </radialGradient>
+          </defs>
 
-        <g className="zoom-layer">
-          <rect
-            x={0}
-            y={0}
-            width={size.width}
-            height={size.height}
-            fill="url(#oceanGlow)"
-            rx={24}
-          />
-          <path
-            d={path({ type: "Sphere" }) ?? ""}
-            fill={palette.sphereFill}
-            stroke={palette.sphereStroke}
-            strokeWidth={1}
-          />
+          <g className="zoom-layer">
+            <rect
+              x={0}
+              y={0}
+              width={size.width}
+              height={size.height}
+              fill="url(#oceanGlow)"
+              rx={24}
+            />
+            <path
+              d={path({ type: "Sphere" }) ?? ""}
+              fill={palette.sphereFill}
+              stroke={palette.sphereStroke}
+              strokeWidth={1}
+            />
 
-          <path
-            d={path(graticule) ?? ""}
-            fill="none"
-            stroke={palette.graticule}
-            strokeWidth={0.7}
-          />
+            <path
+              d={path(graticule) ?? ""}
+              fill="none"
+              stroke={palette.graticule}
+              strokeWidth={0.7}
+            />
 
-          {WORLD_FEATURES.features.map((country, index) => {
-            const isHovered = hoveredCountry?.feature === country
+            {WORLD_FEATURES.features.map((country, index) => {
+              const isHovered = hoveredCountry?.feature === country
 
-            return (
-              <path
-                key={index}
-                d={path(country) ?? ""}
-                fill={isHovered ? highlightFill : palette.countryFill}
-                stroke={isHovered ? highlightStroke : palette.countryStroke}
-                strokeWidth={isHovered ? 1.1 : 0.6}
-                className="cursor-pointer transition-colors duration-200"
-                onMouseEnter={(event) => handleCountryHover(country, event)}
-                onMouseMove={handleCountryMove}
-                onMouseLeave={handleCountryLeave}
-              />
-            )
-          })}
+              return (
+                <path
+                  key={index}
+                  d={path(country) ?? ""}
+                  fill={isHovered ? highlightFill : palette.countryFill}
+                  stroke={isHovered ? highlightStroke : palette.countryStroke}
+                  strokeWidth={isHovered ? 1.1 : 0.6}
+                  className="cursor-pointer transition-colors duration-200"
+                  onMouseEnter={(event) => handleCountryHover(country, event)}
+                  onMouseMove={handleCountryMove}
+                  onMouseLeave={handleCountryLeave}
+                />
+              )
+            })}
 
-          {renderedSatellites.map((sat) => {
-            const isTracked = trackedIds.has(sat.id)
-            const isHovered = hoveredSatelliteId === sat.id
-            const showTrajectory = isTracked || isHovered
-            const segments = showTrajectory
-              ? splitTrackOnDateline(sat.path)
-              : []
+            {renderedSatellites.map((sat) => {
+              const isTracked = trackedIds.has(sat.id)
+              const isHovered = hoveredSatelliteId === sat.id
+              const showTrajectory = isTracked || isHovered
+              const segments = showTrajectory
+                ? splitTrackOnDateline(sat.path)
+                : []
 
-            return (
-              <g key={sat.id}>
-                {showTrajectory &&
-                  segments.map((segment, index) => {
-                    const lineD = path({
-                      type: "LineString",
-                      coordinates: segment,
-                    } as GeoJSON.LineString)
+              const footprintSegments =
+                isTracked && sat.current
+                  ? splitTrackOnDateline(
+                      footprintRingLngLat(
+                        sat.current.lat,
+                        sat.current.lng,
+                        sat.current.altitudeKm,
+                        56
+                      )
+                    )
+                  : []
 
+              return (
+                <g key={sat.id}>
+                  {footprintSegments.map((ringSeg, fIdx) => {
+                    if (ringSeg.length < 3) return null
+                    const closed: [number, number][] = [...ringSeg, ringSeg[0]!]
+                    const d = path({
+                      type: "Polygon",
+                      coordinates: [closed],
+                    } as GeoJSON.Polygon)
+                    if (!d) return null
                     return (
                       <path
-                        key={`${sat.id}-seg-${index}`}
-                        d={lineD ?? ""}
-                        fill="none"
-                        stroke={palette.track}
-                        strokeWidth={2}
-                        strokeDasharray="6 6"
+                        key={`${sat.id}-footprint-${fIdx}`}
+                        d={d}
+                        fill={palette.coverageFill}
+                        stroke={palette.coverageStroke}
+                        strokeWidth={0.85}
                         pointerEvents="none"
                       />
                     )
                   })}
 
-                {sat.current &&
-                  (() => {
-                    const point = projection([sat.current.lng, sat.current.lat])
+                  {showTrajectory &&
+                    segments.map((segment, index) => {
+                      const lineD = path({
+                        type: "LineString",
+                        coordinates: segment,
+                      } as GeoJSON.LineString)
 
-                    if (!point) return null
-
-                    const [x, y] = point
-
-                    return (
-                      <g
-                        className="cursor-pointer"
-                        onMouseEnter={() => setHoveredSatelliteId(sat.id)}
-                        onMouseLeave={() =>
-                          setHoveredSatelliteId((prev) =>
-                            prev === sat.id ? null : prev
-                          )
-                        }
-                        onClick={() => onSatelliteClick?.(sat.id)}
-                      >
-                        <circle
-                          cx={x}
-                          cy={y}
-                          r={isTracked || isHovered ? 16 : 8}
-                          fill={palette.satelliteHalo}
-                          opacity={isTracked || isHovered ? 1 : 0.35}
+                      return (
+                        <path
+                          key={`${sat.id}-seg-${index}`}
+                          d={lineD ?? ""}
+                          fill="none"
+                          stroke={palette.track}
+                          strokeWidth={2}
+                          strokeDasharray="6 6"
+                          pointerEvents="none"
                         />
-                        <circle
-                          cx={x}
-                          cy={y}
-                          r={isTracked || isHovered ? 7 : 3.5}
-                          fill={palette.satelliteCore}
-                          stroke={palette.satelliteStroke}
-                          strokeWidth={isTracked || isHovered ? 2 : 1}
-                        />
-                        {showTrajectory && (
-                          <text
-                            x={x + 12}
-                            y={y - 12}
-                            fill={palette.satelliteLabel}
-                            fontSize="11"
-                            fontWeight="600"
-                            style={{ opacity: labelOpacity }}
-                            pointerEvents="none"
-                          >
-                            {sat.name}
-                          </text>
-                        )}
-                      </g>
-                    )
-                  })()}
-              </g>
-            )
-          })}
+                      )
+                    })}
 
-          {hoveredCountrySatMarkers.length > 0 && (
-            <g>
-              {hoveredCountrySatMarkers.map((marker) => {
-                const [x, y] = marker.point
-                return (
-                  <g key={`hover-marker-${marker.id}`} pointerEvents="none">
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={7}
-                      fill={palette.satelliteCore}
-                      stroke={palette.satelliteStroke}
-                      strokeWidth={1.5}
-                    />
-                    <circle
-                      cx={x}
-                      cy={y}
-                      r={13}
-                      fill="none"
-                      stroke={highlightStroke}
-                      strokeWidth={1.5}
-                      strokeDasharray="4 3"
-                    />
-                    <text
-                      x={x + 10}
-                      y={y - 8}
-                      fill={palette.satelliteLabel}
-                      fontSize="10"
-                      fontWeight="700"
-                      style={{ opacity: labelOpacity }}
-                    >
-                      {marker.name}
-                    </text>
-                  </g>
-                )
-              })}
-            </g>
-          )}
-        </g>
-      </svg>
+                  {sat.current &&
+                    (() => {
+                      const point = projection([
+                        sat.current.lng,
+                        sat.current.lat,
+                      ])
 
-      {hoveredCountry && tooltipStyle && (
-        <div
-          style={tooltipStyle}
-          className="pointer-events-none absolute z-50 w-[420px] rounded-2xl border border-white/20 bg-slate-950/90 px-4 py-3 text-xs text-white shadow-2xl shadow-black/60 backdrop-blur"
-        >
-          <div className="text-sm font-semibold text-white">
-            {hoveredCountry.name}
-          </div>
-          <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-white/70">
-            <span>ISO: {hoveredCountry.iso ?? "—"}</span>
-            <span>Регион: {hoveredCountry.region ?? "—"}</span>
-          </div>
-          {hoveredCountry.center && (
-            <div className="mt-1 text-[11px] text-white/70">
-              Центр: {hoveredCountry.center[1].toFixed(2)}° N,{" "}
-              {hoveredCountry.center[0].toFixed(2)}° E
-            </div>
-          )}
-          {hoveredCountryPasses && (
-            <div className="mt-2 grid grid-cols-3 gap-1">
-              {[
-                {
-                  title: "Сейчас",
-                  items: hoveredCountryPasses.current,
-                  accent: "bg-emerald-400/20 text-emerald-100 border-emerald-300/40",
-                },
-                {
-                  title: `Недавно (≤${RECENT_WINDOW_MIN} мин)`,
-                  items: hoveredCountryPasses.recent.slice(0, 5),
-                  accent: "bg-sky-400/15 text-sky-50 border-sky-300/40",
-                },
-                {
-                  title: `Скоро (≤${UPCOMING_WINDOW_MIN} мин)`,
-                  items: hoveredCountryPasses.upcoming.slice(0, 5),
-                  accent: "bg-amber-400/15 text-amber-100 border-amber-300/40",
-                },
-              ].map((section) => (
-                <div key={section.title} className="flex flex-col gap-0.5 rounded-xl border border-white/10 bg-white/5 p-1">
-                  <div className="flex items-center justify-between text-[9px] text-white/70">
-                    <span>{section.title}</span>
-                    <span>{section.items.length}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-0.5">
-                    {section.items.length ? (
-                      section.items.map((item) => (
-                        <span
-                          key={item.id}
-                          className={cn(
-                            "rounded-full border px-1 py-[2px] text-[9px] leading-none",
-                            section.accent
-                          )}
+                      if (!point) return null
+
+                      const [x, y] = point
+                      const coreR =
+                        (isTracked || isHovered ? 5 : 2.6) * markerScale
+
+                      return (
+                        <g
+                          className="cursor-pointer"
+                          onMouseEnter={() => setHoveredSatelliteId(sat.id)}
+                          onMouseLeave={() =>
+                            setHoveredSatelliteId((prev) =>
+                              prev === sat.id ? null : prev
+                            )
+                          }
+                          onClick={() => onSatelliteClick?.(sat.id)}
                         >
-                          {item.name}
-                          {typeof item.offsetMinutes === "number" &&
-                            item.offsetMinutes !== 0 && (
-                              <span className="text-white/60">
-                                {" "}
-                                {item.offsetMinutes > 0
-                                  ? `${item.offsetMinutes} м.`
-                                  : `${Math.abs(item.offsetMinutes)} м.`}
-                              </span>
-                            )}
-                        </span>
-                      ))
-                    ) : (
-                      <span className="text-white/50">Нет</span>
-                    )}
-                  </div>
-                </div>
-              ))}
+                          <circle
+                            cx={x}
+                            cy={y}
+                            r={coreR}
+                            fill={palette.satelliteCore}
+                            stroke={palette.satelliteStroke}
+                            strokeWidth={
+                              (isTracked || isHovered ? 1.8 : 1) * markerScale
+                            }
+                          />
+                          {showTrajectory && (
+                            <text
+                              x={x + 10 * markerScale}
+                              y={y - 10 * markerScale}
+                              fill={palette.satelliteLabel}
+                              fontSize={11 * markerScale}
+                              fontWeight="600"
+                              style={{ opacity: labelOpacity }}
+                              pointerEvents="none"
+                            >
+                              {sat.name}
+                            </text>
+                          )}
+                        </g>
+                      )
+                    })()}
+                </g>
+              )
+            })}
+
+            {hoveredCountrySatMarkers.length > 0 && (
+              <g>
+                {hoveredCountrySatMarkers.map((marker) => {
+                  const [x, y] = marker.point
+                  const hr = 3.5 * markerScale
+                  return (
+                    <g key={`hover-marker-${marker.id}`} pointerEvents="none">
+                      <circle
+                        cx={x}
+                        cy={y}
+                        r={hr}
+                        fill={palette.satelliteCore}
+                        stroke={palette.satelliteStroke}
+                        strokeWidth={1.1 * markerScale}
+                      />
+                      <text
+                        x={x + 8 * markerScale}
+                        y={y - 6 * markerScale}
+                        fill={palette.satelliteLabel}
+                        fontSize={10 * markerScale}
+                        fontWeight="700"
+                        style={{ opacity: labelOpacity }}
+                      >
+                        {marker.name}
+                      </text>
+                    </g>
+                  )
+                })}
+              </g>
+            )}
+
+            {selectedMapPoint && !mapPickMode && (() => {
+              const projected = projection([
+                selectedMapPoint.lng,
+                selectedMapPoint.lat,
+              ])
+              if (!projected) return null
+              const [sx, sy] = projected
+              return (
+                <g pointerEvents="none">
+                  <circle
+                    cx={sx}
+                    cy={sy}
+                    r={14 * markerScale}
+                    fill="none"
+                    stroke={highlightStroke}
+                    strokeWidth={1.6}
+                    strokeDasharray="4 3"
+                    opacity={0.95}
+                  />
+                  <circle
+                    cx={sx}
+                    cy={sy}
+                    r={4.5 * markerScale}
+                    fill={highlightStroke}
+                    fillOpacity={0.35}
+                  />
+                </g>
+              )
+            })()}
+
+            {mapPickMode && (
+              <rect
+                x={0}
+                y={0}
+                width={size.width}
+                height={size.height}
+                fill="rgba(15,23,42,0.14)"
+                style={{ cursor: "crosshair" }}
+                onClick={handleMapPickClick}
+              />
+            )}
+          </g>
+        </svg>
+
+        {selectedMapPoint && selectedPointPasses && (
+          <div className="pointer-events-none absolute right-4 bottom-4 z-50 w-[min(420px,calc(100vw-2rem))] rounded-2xl border border-white/20 bg-slate-950/90 px-4 py-3 text-xs text-white shadow-2xl shadow-black/60 backdrop-blur">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white">
+              <MapPin className="size-4 shrink-0 text-sky-400" aria-hidden />
+              Точка на карте
             </div>
-          )}
+            <div className="mt-1 text-[11px] text-white/70">
+              {selectedMapPoint.lat.toFixed(2)}°, {selectedMapPoint.lng.toFixed(2)}° · зона пролёта ±{PASS_NEAR_POINT_KM}{" "}
+              км
+            </div>
+            <div className="mt-1 text-[10px] text-white/50">
+              Учтено спутников:{" "}
+              {selectedPointPasses.current.length +
+                selectedPointPasses.recent.length +
+                selectedPointPasses.upcoming.length}
+            </div>
+            <PassBucketsGrid passes={selectedPointPasses} />
+          </div>
+        )}
+
+        <div className="pointer-events-none absolute bottom-4 left-4 z-50">
+          <div className="pointer-events-auto flex max-w-[min(14rem,42vw)] flex-col gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={mapPickMode ? "default" : "secondary"}
+              className="gap-2 shadow-lg"
+              onClick={() => setMapPickMode((v) => !v)}
+            >
+              <MapPin className="size-3.5 shrink-0" aria-hidden />
+              {mapPickMode ? "Отмена" : "Точка на карте"}
+            </Button>
+            {mapPickMode && (
+              <p className="rounded-lg border border-white/15 bg-slate-950/80 px-2 py-1.5 text-[10px] leading-snug text-white/80 backdrop-blur">
+                Кликните по карте. Учитываются масштаб и сдвиг карты.
+              </p>
+            )}
+            {selectedMapPoint && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="gap-2 border-white/30 bg-slate-950/70 text-white shadow-lg backdrop-blur"
+                onClick={() => setSelectedMapPoint(null)}
+              >
+                <MapPin className="size-3.5 shrink-0 opacity-70" aria-hidden />
+                Сбросить точку
+              </Button>
+            )}
+          </div>
         </div>
-      )}
-    </div>
+
+        {hoveredCountry && tooltipStyle && (
+          <div
+            style={tooltipStyle}
+            className="pointer-events-none absolute z-50 w-[420px] rounded-2xl border border-white/20 bg-slate-950/90 px-4 py-3 text-xs text-white shadow-2xl shadow-black/60 backdrop-blur"
+          >
+            <div className="text-sm font-semibold text-white">
+              {hoveredCountry.name}
+            </div>
+            <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-white/70">
+              <span>ISO: {hoveredCountry.iso ?? "—"}</span>
+              <span>Регион: {hoveredCountry.region ?? "—"}</span>
+            </div>
+            {hoveredCountry.center && (
+              <div className="mt-1 text-[11px] text-white/70">
+                Центр: {hoveredCountry.center[1].toFixed(2)}° N,{" "}
+                {hoveredCountry.center[0].toFixed(2)}° E
+              </div>
+            )}
+            {hoveredCountryPasses && (
+              <PassBucketsGrid passes={hoveredCountryPasses} />
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

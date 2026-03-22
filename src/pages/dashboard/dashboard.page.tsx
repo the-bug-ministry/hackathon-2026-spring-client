@@ -173,14 +173,14 @@ export function DashboardPage() {
         />
       </div>
 
-      <div className="md:hidden max-h-screen">
+      <div className="max-h-screen md:hidden">
         <Sheet open={isTrackedSheetOpen} onOpenChange={setTrackedSheetOpen}>
           <SheetTrigger asChild>
             <Button
-              className="fixed bottom-32 right-4 z-30 rounded-full bg-primary px-4 py-3 text-primary-foreground shadow-lg shadow-primary/40 hover:bg-primary/90"
+              className="fixed right-4 bottom-32 z-30 rounded-full bg-primary px-4 py-3 text-primary-foreground shadow-lg shadow-primary/40 hover:bg-primary/90"
               size="sm"
             >
-              <SatelliteIcon className="size-4 mr-2" />
+              <SatelliteIcon className="mr-2 size-4" />
               Отслеживаемые
               {selectedIds.length > 0 && (
                 <span className="ml-2 rounded-full bg-white/20 px-2 text-xs font-semibold">
@@ -191,11 +191,13 @@ export function DashboardPage() {
           </SheetTrigger>
           <SheetContent
             side="bottom"
-            className="h-[88vh] max-h-[88vh] rounded-t-3xl p-0 flex flex-col overflow-hidden"
+            className="flex h-[88vh] max-h-[88vh] flex-col overflow-hidden rounded-t-3xl p-0"
             showCloseButton
           >
             <SheetHeader className="border-b border-border/60">
-              <SheetTitle className="px-4 py-2 text-base">Отслеживаемые спутники</SheetTitle>
+              <SheetTitle className="px-4 py-2 text-base">
+                Отслеживаемые спутники
+              </SheetTitle>
             </SheetHeader>
             <div className="flex-1 overflow-auto p-3 pt-2 pb-6">
               <TrackedSatellites

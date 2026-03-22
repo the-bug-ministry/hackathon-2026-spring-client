@@ -8,7 +8,7 @@ import type { TleDemoLineItem } from "../api/dto/tle-demo"
  */
 export function mergeSatelliteDemoWithTle(
   satellites: Satellite[],
-  tleLines: TleDemoLineItem[],
+  tleLines: TleDemoLineItem[]
 ): SatelliteDemoItem[] {
   const byNorad = new Map(tleLines.map((t) => [t.noradId, t]))
 
