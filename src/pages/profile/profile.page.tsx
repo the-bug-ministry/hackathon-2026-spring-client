@@ -90,7 +90,7 @@ export function ProfilePage() {
               </CardContent>
             </Card>
 
-            <Tabs defaultValue="profile" className="space-y-4">
+            <Tabs defaultValue="tle" className="space-y-4">
               <TabsList
                 className="flex-nowrap gap-1 overflow-x-auto rounded-3xl p-[3px] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 variant="default"
@@ -99,7 +99,7 @@ export function ProfilePage() {
                   Личные данные
                 </TabsTrigger>
                 <TabsTrigger value="tle" className="px-4 whitespace-nowrap">
-                  Список TLE дампов
+                  Файлы TLE
                 </TabsTrigger>
               </TabsList>
 
