@@ -1,8 +1,8 @@
 "use client"
 
-import { Canvas, useFrame } from "@react-three/fiber"
+import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { OrbitControls, Html, Stars } from "@react-three/drei"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import clsx from "clsx"
 import type { SatelliteMap } from "@/entities/satellite/model"
@@ -35,12 +35,15 @@ type EarthGlobe3DProps = {
 }
 
 type SatellitePointProps = {
+  satelliteId: string
   lat: number
   lng: number
   name: string
   altitudeKm: number
   showLabel?: boolean
   labelOpacity?: number
+  /** Регистрация группы сфер для raycast-hover (без траектории/HTML) */
+  registerInteractiveTarget?: (id: string) => (node: THREE.Group | null) => void
 }
 
 type SatPosition = OrbitalPosition
@@ -292,31 +295,45 @@ function createMapTexture(theme: GlobeTheme) {
   return texture
 }
 
+const meshUserData = (satelliteId: string) => ({ satelliteId })
+
 function SatellitePoint({
+  satelliteId,
   lat,
   lng,
   name,
+  altitudeKm: _altitudeKm,
   showLabel = false,
   labelOpacity = 1,
+  registerInteractiveTarget,
 }: SatellitePointProps) {
   const position = useMemo(() => latLngToVector3(lat, lng, 2.025), [lat, lng])
+  const ud = useMemo(() => meshUserData(satelliteId), [satelliteId])
+  const setInteractiveGroup = registerInteractiveTarget?.(satelliteId)
 
   return (
     <group position={position}>
-      <mesh>
-        <sphereGeometry args={[0.04, 16, 16]} />
-        <meshBasicMaterial color="#22c55e" />
-      </mesh>
+      <group ref={setInteractiveGroup}>
+        <mesh userData={ud}>
+          <sphereGeometry args={[0.04, 16, 16]} />
+          <meshBasicMaterial color="#22c55e" />
+        </mesh>
 
-      <mesh>
-        <sphereGeometry args={[0.08, 16, 16]} />
-        <meshBasicMaterial color="#22c55e" transparent opacity={0.15} />
-      </mesh>
+        <mesh userData={ud}>
+          <sphereGeometry args={[0.08, 16, 16]} />
+          <meshBasicMaterial color="#22c55e" transparent opacity={0.15} />
+        </mesh>
+      </group>
 
       {showLabel && (
-        <Html distanceFactor={12} center>
+        <Html
+          center
+          distanceFactor={4}
+          style={{ width: "max-content", pointerEvents: "none" }}
+          className="w-max!"
+        >
           <div
-            className="pointer-events-none rounded-full bg-slate-950/70 px-2 py-0.5 text-[8px] font-semibold text-white/90 shadow-lg backdrop-blur"
+            className="pointer-events-none max-w-[min(9rem,32vw)] rounded border border-white/10 bg-slate-950/85 px-1 py-px text-[6px] leading-snug font-medium break-all text-white/90 shadow-sm backdrop-blur-sm"
             style={{ opacity: labelOpacity }}
           >
             {name}
@@ -353,6 +370,7 @@ function MockSatelliteLayer({
       {points.map((point) => (
         <SatellitePoint
           key={point.id}
+          satelliteId={point.id}
           lat={point.lat}
           lng={point.lng}
           name={point.name}
@@ -363,6 +381,26 @@ function MockSatelliteLayer({
   )
 }
 
+function DashedTrackSegment({ positions }: { positions: Float32Array }) {
+  const lineObject = useMemo(() => {
+    const geom = new THREE.BufferGeometry()
+    geom.setAttribute("position", new THREE.BufferAttribute(positions, 3))
+    const mat = new THREE.LineDashedMaterial({
+      color: "#38bdf8",
+      dashSize: 0.035,
+      gapSize: 0.024,
+      transparent: true,
+      opacity: 0.85,
+    })
+    const line = new THREE.Line(geom, mat)
+    line.computeLineDistances()
+    line.raycast = () => null
+    return line
+  }, [positions])
+
+  return <primitive object={lineObject} />
+}
+
 function SatelliteTrack({ path }: { path: Array<[number, number]> }) {
   const segments = useMemo(() => buildTrackSegmentPositions(path), [path])
   if (!segments.length) return null
@@ -370,20 +408,7 @@ function SatelliteTrack({ path }: { path: Array<[number, number]> }) {
   return (
     <>
       {segments.map((positions, index) => (
-        <line key={`track-${index}`}>
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              args={[positions, 3]}
-            />
-          </bufferGeometry>
-          <lineBasicMaterial
-            color="#38bdf8"
-            linewidth={1.5}
-            transparent
-            opacity={0.85}
-          />
-        </line>
+        <DashedTrackSegment key={`track-${index}`} positions={positions} />
       ))}
     </>
   )
@@ -400,37 +425,38 @@ function SatelliteCoverageRing({
 }) {
   const positions = useMemo(
     () => buildCoverageCirclePositions(lat, lng, altitudeKm),
-    [lat, lng, altitudeKm]
+    [lat, lng, altitudeKm],
   )
   if (!positions.length) return null
 
-  return (
-    <line>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-      </bufferGeometry>
-      <lineBasicMaterial
-        color="#34d399"
-        transparent
-        opacity={0.35}
-        linewidth={1.2}
-      />
-    </line>
-  )
+  const lineObject = useMemo(() => {
+    const geom = new THREE.BufferGeometry()
+    geom.setAttribute("position", new THREE.BufferAttribute(positions, 3))
+    const mat = new THREE.LineBasicMaterial({
+      color: "#34d399",
+      transparent: true,
+      opacity: 0.35,
+    })
+    const line = new THREE.Line(geom, mat)
+    line.raycast = () => null
+    return line
+  }, [positions])
+
+  return <primitive object={lineObject} />
 }
 
 function RenderedSatelliteMarker({
   satellite,
   isTracked,
   isHovered,
-  onHoverChange,
+  registerInteractiveTarget,
   onSelect,
   labelOpacity,
 }: {
   satellite: RenderedSatellite3D
   isTracked: boolean
   isHovered: boolean
-  onHoverChange: (id: string | null) => void
+  registerInteractiveTarget: (id: string) => (node: THREE.Group | null) => void
   onSelect?: (id: string) => void
   labelOpacity?: number
 }) {
@@ -445,22 +471,16 @@ function RenderedSatelliteMarker({
         event.stopPropagation()
         onSelect?.(satellite.id)
       }}
-      onPointerOver={(event) => {
-        event.stopPropagation()
-        onHoverChange(satellite.id)
-      }}
-      onPointerOut={(event) => {
-        event.stopPropagation()
-        onHoverChange(null)
-      }}
     >
       <SatellitePoint
+        satelliteId={satellite.id}
         lat={current.lat}
         lng={current.lng}
         name={satellite.name}
         altitudeKm={current.altitudeKm}
         showLabel={showTrajectory}
         labelOpacity={labelOpacity}
+        registerInteractiveTarget={registerInteractiveTarget}
       />
       {showTrajectory && (
         <>
@@ -495,13 +515,53 @@ function SatelliteVisualizationLayer({
   onSatelliteClick?: (id: string) => void
   labelOpacity?: number
 }) {
+  const { camera, gl } = useThree()
+  const raycaster = useMemo(() => new THREE.Raycaster(), [])
+  const pointer = useMemo(() => new THREE.Vector2(), [])
+  const hitTargetsRef = useRef<Map<string, THREE.Object3D>>(new Map())
+
+  const registerInteractiveTarget = useCallback(
+    (id: string) => (node: THREE.Group | null) => {
+      if (node) hitTargetsRef.current.set(id, node)
+      else hitTargetsRef.current.delete(id)
+    },
+    [],
+  )
+
+  useEffect(() => {
+    const el = gl.domElement
+    const onPointerMove = (e: PointerEvent) => {
+      const rect = el.getBoundingClientRect()
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+      raycaster.setFromCamera(pointer, camera)
+      const targets = Array.from(hitTargetsRef.current.values())
+      if (!targets.length) {
+        onSatelliteHover(null)
+        return
+      }
+      const hits = raycaster.intersectObjects(targets, true)
+      const first = hits.find(
+        (h) => typeof h.object.userData.satelliteId === "string",
+      )
+      onSatelliteHover(first?.object.userData.satelliteId ?? null)
+    }
+    const onPointerLeave = () => onSatelliteHover(null)
+    el.addEventListener("pointermove", onPointerMove)
+    el.addEventListener("pointerleave", onPointerLeave)
+    return () => {
+      el.removeEventListener("pointermove", onPointerMove)
+      el.removeEventListener("pointerleave", onPointerLeave)
+    }
+  }, [camera, gl, onSatelliteHover, pointer, raycaster])
+
   const rendered = useRenderedSatellites(
     satellites,
-    simulationTime ?? new Date()
+    simulationTime ?? new Date(),
   )
   const trackedSet = useMemo(
     () => new Set(trackedSatelliteIds ?? []),
-    [trackedSatelliteIds]
+    [trackedSatelliteIds],
   )
 
   if (!rendered.length) {
@@ -516,7 +576,7 @@ function SatelliteVisualizationLayer({
           satellite={satellite}
           isTracked={trackedSet.has(satellite.id)}
           isHovered={hoveredSatelliteId === satellite.id}
-          onHoverChange={onSatelliteHover}
+          registerInteractiveTarget={registerInteractiveTarget}
           onSelect={onSatelliteClick}
           labelOpacity={labelOpacity}
         />
@@ -587,7 +647,7 @@ export function EarthGlobe3D({
         className
       )}
     >
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900/90 to-slate-950/60" />
+      <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-slate-950 via-slate-900/90 to-slate-950/60" />
       <Canvas
         className="relative h-full w-full"
         style={{ height: "100%" }}
