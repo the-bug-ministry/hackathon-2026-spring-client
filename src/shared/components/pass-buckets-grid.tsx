@@ -12,8 +12,7 @@ export function PassBucketsGrid({ passes }: { passes: PassBuckets }) {
         {
           title: "Сейчас",
           items: passes.current,
-          accent:
-            "bg-emerald-400/20 text-emerald-100 border-emerald-300/40",
+          accent: "bg-emerald-400/20 text-emerald-100 border-emerald-300/40",
         },
         {
           title: `Недавно (≤${RECENT_WINDOW_MIN} мин)`,
@@ -23,8 +22,7 @@ export function PassBucketsGrid({ passes }: { passes: PassBuckets }) {
         {
           title: `Скоро (≤${UPCOMING_WINDOW_MIN} мин)`,
           items: passes.upcoming.slice(0, 5),
-          accent:
-            "bg-amber-400/15 text-amber-100 border-amber-300/40",
+          accent: "bg-amber-400/15 text-amber-100 border-amber-300/40",
         },
       ].map((section) => (
         <div

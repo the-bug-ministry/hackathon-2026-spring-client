@@ -885,35 +885,37 @@ export function EarthMap2D({
               </g>
             )}
 
-            {selectedMapPoint && !mapPickMode && (() => {
-              const projected = projection([
-                selectedMapPoint.lng,
-                selectedMapPoint.lat,
-              ])
-              if (!projected) return null
-              const [sx, sy] = projected
-              return (
-                <g pointerEvents="none">
-                  <circle
-                    cx={sx}
-                    cy={sy}
-                    r={14 * markerScale}
-                    fill="none"
-                    stroke={highlightStroke}
-                    strokeWidth={1.6}
-                    strokeDasharray="4 3"
-                    opacity={0.95}
-                  />
-                  <circle
-                    cx={sx}
-                    cy={sy}
-                    r={4.5 * markerScale}
-                    fill={highlightStroke}
-                    fillOpacity={0.35}
-                  />
-                </g>
-              )
-            })()}
+            {selectedMapPoint &&
+              !mapPickMode &&
+              (() => {
+                const projected = projection([
+                  selectedMapPoint.lng,
+                  selectedMapPoint.lat,
+                ])
+                if (!projected) return null
+                const [sx, sy] = projected
+                return (
+                  <g pointerEvents="none">
+                    <circle
+                      cx={sx}
+                      cy={sy}
+                      r={14 * markerScale}
+                      fill="none"
+                      stroke={highlightStroke}
+                      strokeWidth={1.6}
+                      strokeDasharray="4 3"
+                      opacity={0.95}
+                    />
+                    <circle
+                      cx={sx}
+                      cy={sy}
+                      r={4.5 * markerScale}
+                      fill={highlightStroke}
+                      fillOpacity={0.35}
+                    />
+                  </g>
+                )
+              })()}
 
             {mapPickMode && (
               <rect
@@ -936,8 +938,9 @@ export function EarthMap2D({
               Точка на карте
             </div>
             <div className="mt-1 text-[11px] text-white/70">
-              {selectedMapPoint.lat.toFixed(2)}°, {selectedMapPoint.lng.toFixed(2)}° · зона пролёта ±{PASS_NEAR_POINT_KM}{" "}
-              км
+              {selectedMapPoint.lat.toFixed(2)}°,{" "}
+              {selectedMapPoint.lng.toFixed(2)}° · зона пролёта ±
+              {PASS_NEAR_POINT_KM} км
             </div>
             <div className="mt-1 text-[10px] text-white/50">
               Учтено спутников:{" "}

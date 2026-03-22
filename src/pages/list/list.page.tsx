@@ -1,6 +1,6 @@
 "use client"
 
-import type { Column, ColumnDef } from "@tanstack/react-table"
+import type { Column, ColumnDef, FilterFn } from "@tanstack/react-table"
 import {
   Calendar,
   CheckCircle2,
@@ -21,6 +21,29 @@ import { DataTableToolbar } from "@/shared/components/data-table/data-table-tool
 import { Badge } from "@/shared/components/ui/badge"
 import { useDataTable } from "@/shared/hooks/use-data-table"
 import type { SatelliteMap } from "@/entities/satellite/model"
+
+/** Мультиселект по `status`: в данных «Active»/«Inactive», в фильтре active/inactive. */
+const satelliteStatusFilter: FilterFn<SatelliteMap> = (
+  row,
+  columnId,
+  filterValue
+) => {
+  const values = filterValue as string[] | undefined
+  if (!values?.length) return true
+  const raw = String(row.getValue(columnId))
+  const normalized = raw.toLowerCase()
+  const activeMatch =
+    normalized === "active" ||
+    normalized === "активный" ||
+    normalized === "online"
+  const inactiveMatch = normalized === "inactive" || normalized === "неактивный"
+  return values.some((f) => {
+    const fv = f.toLowerCase()
+    if (fv === "active") return activeMatch
+    if (fv === "inactive") return inactiveMatch
+    return normalized === fv
+  })
+}
 
 export function ListPage() {
   const {
@@ -99,6 +122,7 @@ export function ListPage() {
             { label: "Polar", value: "Polar", icon: Orbit },
           ],
         },
+        filterFn: "arrIncludesSome",
         enableColumnFilter: true,
       },
       {
@@ -134,6 +158,7 @@ export function ListPage() {
             { label: "Неактивный", value: "inactive", icon: XCircle },
           ],
         },
+        filterFn: satelliteStatusFilter,
         enableColumnFilter: true,
       },
       {
