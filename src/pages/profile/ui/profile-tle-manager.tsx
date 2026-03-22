@@ -56,7 +56,8 @@ export function ProfileTleManager({ className }: { className?: string }) {
   const { mutate: activateFile, isPending: isActivating } =
     useActivateFileMutation()
   const { mutate: deleteFile, isPending: isDeleting } = useDeleteFileMutation()
-  const { mutate: renameFile, isPending: isRenaming } = useUpdateFileNameMutation()
+  const { mutate: renameFile, isPending: isRenaming } =
+    useUpdateFileNameMutation()
 
   const files = filesPayload?.files ?? []
   const activeFile = files.find((f) => f.isActive) ?? null
@@ -83,7 +84,7 @@ export function ProfileTleManager({ className }: { className?: string }) {
         onError: () => {
           toast.error("Не удалось загрузить файл")
         },
-      },
+      }
     )
   }
 
@@ -98,13 +99,13 @@ export function ProfileTleManager({ className }: { className?: string }) {
         onError: () => {
           toast.error("Не удалось активировать файл")
         },
-      },
+      }
     )
   }
 
   const handleDeleteRequest = (file: FileItem) => {
     const ok = window.confirm(
-      `Удалить файл «${file.name}»? Действие нельзя отменить.`,
+      `Удалить файл «${file.name}»? Действие нельзя отменить.`
     )
     if (!ok) return
 
@@ -118,7 +119,7 @@ export function ProfileTleManager({ className }: { className?: string }) {
         onError: () => {
           toast.error("Не удалось удалить файл")
         },
-      },
+      }
     )
   }
 
@@ -144,7 +145,7 @@ export function ProfileTleManager({ className }: { className?: string }) {
         onError: () => {
           toast.error("Не удалось переименовать файл")
         },
-      },
+      }
     )
   }
 
@@ -159,7 +160,7 @@ export function ProfileTleManager({ className }: { className?: string }) {
           "flex flex-col gap-3 rounded-2xl border bg-background/70 p-4 transition sm:flex-row sm:items-center sm:justify-between",
           isActive
             ? "border-emerald-400/75 bg-emerald-500/5 shadow-md shadow-emerald-500/15"
-            : "border-border/70",
+            : "border-border/70"
         )}
       >
         <div className="min-w-0 flex-1 space-y-1">
@@ -224,7 +225,7 @@ export function ProfileTleManager({ className }: { className?: string }) {
               </>
             )}
           </div>
-          <p className="break-all font-mono text-[10px] leading-snug text-muted-foreground sm:text-[11px]">
+          <p className="font-mono text-[10px] leading-snug break-all text-muted-foreground sm:text-[11px]">
             {file.id}
           </p>
         </div>
@@ -265,16 +266,14 @@ export function ProfileTleManager({ className }: { className?: string }) {
         <CardTitle>Список загруженных файлов TLE</CardTitle>
         <CardDescription className="space-y-1 text-xs">
           <span>
-            Управляй дампами TLE на сервере: один файл может быть активным —
-            по нему строятся пользовательские спутники и координаты.
+            Управляй дампами TLE на сервере: один файл может быть активным — по
+            нему строятся пользовательские спутники и координаты.
           </span>
           <span className="block text-muted-foreground">
             {activeFile ? (
               <>Сейчас активен: {activeFile.name}</>
             ) : (
-              <>
-                Активный файл не выбран — нажми кнопку «Сделать активным».
-              </>
+              <>Активный файл не выбран — нажми кнопку «Сделать активным».</>
             )}
           </span>
         </CardDescription>
@@ -371,7 +370,9 @@ export function ProfileTleManager({ className }: { className?: string }) {
             Пока нет файлов. Загрузи первый .txt выше — он появится здесь.
           </p>
         ) : (
-          <div className="space-y-3">{files.map((file) => renderItem(file))}</div>
+          <div className="space-y-3">
+            {files.map((file) => renderItem(file))}
+          </div>
         )}
       </CardContent>
     </Card>

@@ -188,7 +188,7 @@ export function ListPage() {
         },
       },
     ],
-    [],
+    []
   )
 
   const { table } = useDataTable({
@@ -221,7 +221,9 @@ export function ListPage() {
               Загрузка…
             </span>
           ) : (
-            <>Записей: {data.length}. {subtitle}</>
+            <>
+              Записей: {data.length}. {subtitle}
+            </>
           )}
         </p>
       </div>

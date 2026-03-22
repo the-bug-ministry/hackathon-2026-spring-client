@@ -22,6 +22,7 @@ import type { Topology, GeometryCollection } from "topojson-specification"
 import { cn } from "@/shared/lib/utils"
 import { propagateSatellitePosition } from "@/entities/satellite/lib/propagation"
 import type { OrbitalPosition } from "@/entities/satellite/lib/propagation"
+import { footprintRingLngLat } from "@/entities/satellite/lib/coverage-footprint"
 import { COUNTRY_NAME_RU_BY_EN } from "@/shared/config/country-names-ru"
 import { OrbitPreloader } from "@/shared/components/ui/orbit-preloader"
 
@@ -78,10 +79,11 @@ type MapPalette = {
   countryFill: string
   countryStroke: string
   track: string
-  satelliteHalo: string
   satelliteCore: string
   satelliteStroke: string
   satelliteLabel: string
+  coverageFill: string
+  coverageStroke: string
 }
 
 const MAP_PALETTES: Record<MapTheme, MapPalette> = {
@@ -94,10 +96,11 @@ const MAP_PALETTES: Record<MapTheme, MapPalette> = {
     countryFill: "#12213d",
     countryStroke: "rgba(148,163,184,0.18)",
     track: "rgba(96,165,250,0.85)",
-    satelliteHalo: "rgba(34,197,94,0.14)",
     satelliteCore: "#10b981",
     satelliteStroke: "#ffffff",
     satelliteLabel: "#ffffff",
+    coverageFill: "rgba(52, 211, 153, 0.14)",
+    coverageStroke: "rgba(52, 211, 153, 0.55)",
   },
   light: {
     oceanGlowStart: "#e0f2fe",
@@ -108,10 +111,11 @@ const MAP_PALETTES: Record<MapTheme, MapPalette> = {
     countryFill: "#e2e8f0",
     countryStroke: "rgba(15,23,42,0.2)",
     track: "rgba(14,116,144,0.85)",
-    satelliteHalo: "rgba(14,116,144,0.18)",
     satelliteCore: "#0f172a",
     satelliteStroke: "#0f172a",
     satelliteLabel: "#0f172a",
+    coverageFill: "rgba(13, 148, 136, 0.12)",
+    coverageStroke: "rgba(13, 148, 136, 0.5)",
   },
 }
 
@@ -544,6 +548,7 @@ export function EarthMap2D({
   const path = useMemo(() => geoPath(projection), [projection])
   const graticule = useMemo(() => geoGraticule10(), [])
   const palette = MAP_PALETTES[mapTheme]
+  const markerScale = size.width < 480 ? 0.55 : size.width < 768 ? 0.78 : 1
   const wrapperClassName = cn(
     className ?? "h-full w-full rounded-2xl",
     mapTheme === "dark" ? "bg-slate-950" : "bg-slate-50",
@@ -715,8 +720,40 @@ export function EarthMap2D({
                 ? splitTrackOnDateline(sat.path)
                 : []
 
+              const footprintSegments =
+                isTracked && sat.current
+                  ? splitTrackOnDateline(
+                      footprintRingLngLat(
+                        sat.current.lat,
+                        sat.current.lng,
+                        sat.current.altitudeKm,
+                        56
+                      )
+                    )
+                  : []
+
               return (
                 <g key={sat.id}>
+                  {footprintSegments.map((ringSeg, fIdx) => {
+                    if (ringSeg.length < 3) return null
+                    const closed: [number, number][] = [...ringSeg, ringSeg[0]!]
+                    const d = path({
+                      type: "Polygon",
+                      coordinates: [closed],
+                    } as GeoJSON.Polygon)
+                    if (!d) return null
+                    return (
+                      <path
+                        key={`${sat.id}-footprint-${fIdx}`}
+                        d={d}
+                        fill={palette.coverageFill}
+                        stroke={palette.coverageStroke}
+                        strokeWidth={0.85}
+                        pointerEvents="none"
+                      />
+                    )
+                  })}
+
                   {showTrajectory &&
                     segments.map((segment, index) => {
                       const lineD = path({
@@ -747,6 +784,8 @@ export function EarthMap2D({
                       if (!point) return null
 
                       const [x, y] = point
+                      const coreR =
+                        (isTracked || isHovered ? 5 : 2.6) * markerScale
 
                       return (
                         <g
@@ -762,24 +801,19 @@ export function EarthMap2D({
                           <circle
                             cx={x}
                             cy={y}
-                            r={isTracked || isHovered ? 16 : 8}
-                            fill={palette.satelliteHalo}
-                            opacity={isTracked || isHovered ? 1 : 0.35}
-                          />
-                          <circle
-                            cx={x}
-                            cy={y}
-                            r={isTracked || isHovered ? 7 : 3.5}
+                            r={coreR}
                             fill={palette.satelliteCore}
                             stroke={palette.satelliteStroke}
-                            strokeWidth={isTracked || isHovered ? 2 : 1}
+                            strokeWidth={
+                              (isTracked || isHovered ? 1.8 : 1) * markerScale
+                            }
                           />
                           {showTrajectory && (
                             <text
-                              x={x + 12}
-                              y={y - 12}
+                              x={x + 10 * markerScale}
+                              y={y - 10 * markerScale}
                               fill={palette.satelliteLabel}
-                              fontSize="11"
+                              fontSize={11 * markerScale}
                               fontWeight="600"
                               style={{ opacity: labelOpacity }}
                               pointerEvents="none"
@@ -798,30 +832,22 @@ export function EarthMap2D({
               <g>
                 {hoveredCountrySatMarkers.map((marker) => {
                   const [x, y] = marker.point
+                  const hr = 3.5 * markerScale
                   return (
                     <g key={`hover-marker-${marker.id}`} pointerEvents="none">
                       <circle
                         cx={x}
                         cy={y}
-                        r={7}
+                        r={hr}
                         fill={palette.satelliteCore}
                         stroke={palette.satelliteStroke}
-                        strokeWidth={1.5}
-                      />
-                      <circle
-                        cx={x}
-                        cy={y}
-                        r={13}
-                        fill="none"
-                        stroke={highlightStroke}
-                        strokeWidth={1.5}
-                        strokeDasharray="4 3"
+                        strokeWidth={1.1 * markerScale}
                       />
                       <text
-                        x={x + 10}
-                        y={y - 8}
+                        x={x + 8 * markerScale}
+                        y={y - 6 * markerScale}
                         fill={palette.satelliteLabel}
-                        fontSize="10"
+                        fontSize={10 * markerScale}
                         fontWeight="700"
                         style={{ opacity: labelOpacity }}
                       >
